@@ -920,3 +920,13 @@ class WorkingHours(models.Model):
 
     class Meta:
         unique_together = ['staff_member', 'day_of_week']
+
+
+class Session(models.Model):
+    appointments = models.ManyToManyField(Appointment)
+
+    date = models.DateField()
+    start_time = models.TimeField()
+    end_time = models.TimeField()
+
+    staff_member = models.ForeignKey(StaffMember, on_delete=models.CASCADE)

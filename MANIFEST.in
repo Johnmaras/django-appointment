@@ -26,7 +26,7 @@ recursive-include appointment/email_sender *.py
 recursive-include appointment/static/css *.css
 recursive-include appointment/static/js *.js
 recursive-include appointment/static/img *.jpg
-recursive-include appointment/templates/ *.html
+recursive-include appointment/templates *.html
 recursive-include appointment/tests *.py
 recursive-include appointment/utils *.py
 

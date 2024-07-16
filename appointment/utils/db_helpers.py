@@ -20,6 +20,7 @@ from django_q.models import Schedule
 from django_q.tasks import schedule
 
 from appointment.logger_config import logger
+from appointment.models import Session
 from appointment.settings import (
     APPOINTMENT_BUFFER_TIME, APPOINTMENT_FINISH_TIME, APPOINTMENT_LEAD_TIME, APPOINTMENT_PAYMENT_URL,
     APPOINTMENT_SLOT_DURATION, APPOINTMENT_WEBSITE_NAME
@@ -330,15 +331,38 @@ def exclude_booked_slots(appointments, slots, slot_duration=None):
     for slot in slots:
         slot_end = slot + slot_duration
         is_available = True
+        # TODO There should be a filtering of client's current bookings. The client shouldn't be able to book a session at the same date/time regardless the staff and service.
         for appointment in appointments:
             appointment_start_time = appointment.get_start_time()
             appointment_end_time = appointment.get_end_time()
-            if appointment_start_time < slot_end and slot < appointment_end_time:
+            # TODO Possibly remove the check for appointment_start_time and appointment_end_time
+            if appointment_start_time < slot_end and slot < appointment_end_time and (
+                    is_session_full(appointment) or user_has_already_booked_slot(appointment)):
                 is_available = False
                 break
         if is_available:
             available_slots.append(slot)
     return available_slots
+
+
+def user_has_already_booked_slot(appointment):
+    """
+    Check if the user has already booked a slot for the given appointment request.
+
+    :param appointment: The appointment to check.
+    :return: True if the user has already booked a slot for the given appointment request; otherwise, False.
+    """
+    return Appointment.objects.filter(
+        client=appointment.client,
+        appointment_request__date=appointment.appointment_request.date,
+        appointment_request__start_time=appointment.appointment_request.start_time,
+        appointment_request__end_time=appointment.appointment_request.end_time
+    ).exists()
+
+
+def is_session_full(appointment):
+    s = Session.objects.filter(appointments__in=[appointment]).first()
+    return s is not None and s.appointments.count() >= settings.MAX_SESSION_CAPACITY
 
 
 def exclude_pending_reschedules(slots, staff_member, date):
@@ -692,3 +716,17 @@ def working_hours_exist(day_of_week, staff_member):
 
 def get_absolute_url_(relative_url, request):
     return request.build_absolute_uri(relative_url)
+
+
+def add_appointment_to_session(appointment, staff_member):
+    """
+    Add an appointment to a session.
+    """
+    results = Session.objects.filter(date=appointment.get_date(), start_time=appointment.get_start_time(),
+                                     end_time=appointment.get_end_time(), staff_member=staff_member).get_or_create(
+        date=appointment.get_date(),
+        start_time=appointment.get_start_time(),
+        end_time=appointment.get_end_time(), staff_member=staff_member)
+    session = results[0]
+    session.appointments.add(appointment)
+    session.save()
