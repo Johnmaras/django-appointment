@@ -16,8 +16,8 @@ from django.core.cache import cache
 from django.core.exceptions import FieldDoesNotExist
 from django.urls import reverse
 from django.utils import timezone
-from django_q.models import Schedule
-from django_q.tasks import schedule
+# from django_q.models import Schedule
+# from django_q.tasks import schedule
 
 from appointment.logger_config import logger
 from appointment.models import Session
@@ -116,10 +116,10 @@ def create_and_save_appointment(ar, client_data: dict, appointment_data: dict, r
 def schedule_email_reminder(appointment, request, appointment_datetime=None):
     """Schedule an email reminder for the given appointment."""
     # Check if the Django-Q cluster is running
-    from appointment.settings import check_q_cluster
-    if not check_q_cluster():
-        logger.warning("Django-Q cluster is not running. Email reminder will not be scheduled.")
-        return
+    # from appointment.settings import check_q_cluster
+    # if not check_q_cluster():
+    #     logger.warning("Django-Q cluster is not running. Email reminder will not be scheduled.")
+    #     return
 
     # Calculate reminder datetime if not provided
     if appointment_datetime is None:
@@ -137,14 +137,14 @@ def schedule_email_reminder(appointment, request, appointment_datetime=None):
     logger.info(f"Scheduling email reminder for appointment {appointment.id} at {reminder_datetime}")
 
     # Schedule the email reminder task with Django-Q
-    schedule('appointment.tasks.send_email_reminder',
-             to_email=appointment.client.email,
-             name=f"reminder_{appointment.id_request}",
-             first_name=appointment.client.first_name,
-             reschedule_link=reschedule_link,
-             appointment_id=appointment.id,
-             schedule_type=Schedule.ONCE,  # Use Schedule.ONCE for a one-time task
-             next_run=reminder_datetime)
+    # schedule('appointment.tasks.send_email_reminder',
+    #          to_email=appointment.client.email,
+    #          name=f"reminder_{appointment.id_request}",
+    #          first_name=appointment.client.first_name,
+    #          reschedule_link=reschedule_link,
+    #          appointment_id=appointment.id,
+    #          schedule_type=Schedule.ONCE,  # Use Schedule.ONCE for a one-time task
+    #          next_run=reminder_datetime)
 
 
 def update_appointment_reminder(appointment, new_date, new_start_time, request, want_reminder=None):
@@ -192,7 +192,7 @@ def cancel_existing_reminder(appointment_id_request):
     Cancels any existing reminder for the appointment.
     """
     task_name = f"reminder_{appointment_id_request}"
-    Schedule.objects.filter(name=task_name).delete()
+    # Schedule.objects.filter(name=task_name).delete()
 
 
 def can_appointment_be_rescheduled(appointment_request):
