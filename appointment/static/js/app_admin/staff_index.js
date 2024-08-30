@@ -379,7 +379,7 @@ function fetchServices(isEditMode = false) {
 async function populateServices(selectedServiceId, isEditMode = false) {
     const services = await fetchServices(isEditMode);
     if (!services) {
-        showErrorModal(noServiceOfferedTxt)
+        showErrorModal(notStaffMemberTxt)
     }
     const selectElement = document.createElement('select');
     services.forEach(service => {

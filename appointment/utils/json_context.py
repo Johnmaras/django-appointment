@@ -17,9 +17,17 @@ from appointment.utils.db_helpers import username_in_user_model
 from appointment.utils.error_codes import ErrorCode
 
 
+def get_staff_member_name(appt, current_user):
+    staff_member = appt.get_staff_member()
+    return f" ({staff_member.get_staff_member_name()}) " if staff_member.user != current_user or current_user.is_superuser else ""
+
+
+def get_client_name(appt, current_user):
+    return f" - {appt.client.first_name} {appt.client.last_name}" if current_user.is_superuser or current_user.is_staff else ""
+
+
 def convert_appointment_to_json(request, appointments: list) -> list:
     """Convert a queryset of Appointment objects to a JSON serializable format."""
-    su = request.user.is_superuser
     tz = pytz.timezone(get_timezone())
     return [{
         "id": appt.id,
@@ -29,7 +37,7 @@ def convert_appointment_to_json(request, appointments: list) -> list:
         "client_name": appt.get_client_name(),
         "url": appt.get_absolute_url(request),
         "background_color": appt.get_background_color(),
-        "service_name": appt.get_service_name() if not su else f"{appt.get_service_name()} ({appt.get_staff_member_name()})",
+        "service_name": f"{appt.get_service_name()}{get_staff_member_name(appt, request.user)}{get_client_name(appt, request.user)}".strip(),
         "client_email": appt.client.email,
         "client_phone": str(appt.phone),
         "client_address": appt.address,

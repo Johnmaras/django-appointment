@@ -28,7 +28,7 @@ from appointment.utils.db_helpers import (
     get_appointment_by_id, get_appointments_for_date_and_time, get_staff_member_appointment_list,
     get_staff_member_from_user_id_or_logged_in, get_times_from_config, get_user_by_email,
     get_weekday_num_from_date, get_working_hours_for_staff_and_day, parse_name, update_appointment_reminder,
-    working_hours_exist)
+    working_hours_exist, get_client_appointment_list)
 from appointment.utils.error_codes import ErrorCode
 from appointment.utils.json_context import convert_appointment_to_json, get_generic_context, json_response
 from appointment.utils.permissions import check_entity_ownership
@@ -41,16 +41,17 @@ def fetch_user_appointments(user):
     :param user: The user instance.
     :return: A list of appointments.
     """
-    if user.is_superuser:
-        return get_all_appointments()
     try:
-        staff_member_instance = user.staffmember
-        return get_staff_member_appointment_list(staff_member_instance)
+        if user.is_superuser:
+            return get_all_appointments()
+        elif user.is_staff:
+            return get_staff_member_appointment_list(user.staffmember)
+        else:
+            return get_client_appointment_list(user)
     except ObjectDoesNotExist:
-        if user.is_staff:
-            return []
+        return []
 
-    raise ValueError("User is not a staff member or a superuser")
+    # raise ValueError("User is not a staff member or a superuser")
 
 
 def prepare_appointment_display_data(user, appointment_id):
