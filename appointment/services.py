@@ -407,7 +407,7 @@ def get_available_slots(date, appointments):
     return [slot.strftime('%I:%M %p') for slot in slots]
 
 
-def get_available_slots_for_staff(date, staff_member):
+def get_available_slots_for_staff(date, staff_member, client):
     """Calculate the available time slots for a given date and a staff member.
 
     :param date: The date for which to calculate the available slots
@@ -429,7 +429,8 @@ def get_available_slots_for_staff(date, staff_member):
     slots = calculate_staff_slots(date, staff_member)
     slots = exclude_pending_reschedules(slots, staff_member, date)
     appointments = get_appointments_for_date_and_time(date, working_hours_dict['start_time'],
-                                                      working_hours_dict['end_time'], staff_member)
+                                                      working_hours_dict['end_time'], staff_member,
+                                                      client)
     slots = exclude_booked_slots(appointments, slots, slot_duration)
 
     return [slot.strftime('%I:%M %p') for slot in slots]

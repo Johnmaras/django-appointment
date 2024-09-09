@@ -490,7 +490,7 @@ def get_appointment_slot_duration():
     return APPOINTMENT_SLOT_DURATION
 
 
-def get_appointments_for_date_and_time(date, start_time, end_time, staff_member):
+def get_appointments_for_date_and_time(date, start_time, end_time, staff_member, client):
     """Returns all appointments that overlap with the specified date and time range.
 
     :param date: The date to filter appointments on.
@@ -504,7 +504,8 @@ def get_appointments_for_date_and_time(date, start_time, end_time, staff_member)
         appointment_request__date=date,
         appointment_request__start_time__lte=end_time,
         appointment_request__end_time__gte=start_time,
-        appointment_request__staff_member=staff_member
+        appointment_request__staff_member=staff_member,
+        client=client
     )
 
 
@@ -632,6 +633,10 @@ def get_times_from_config(date):
         slot_duration = datetime.timedelta(minutes=APPOINTMENT_SLOT_DURATION)
         buff_time = datetime.timedelta(minutes=APPOINTMENT_BUFFER_TIME)
     return start_time, end_time, slot_duration, buff_time
+
+
+def get_app_client_model():
+    return apps.get_model(settings.APP_CLIENT_MODEL)
 
 
 def get_user_model():

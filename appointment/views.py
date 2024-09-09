@@ -59,6 +59,8 @@ def get_available_slots_ajax(request):
     selected_date = convert_str_to_date(request.GET.get('selected_date'))
     staff_id = request.GET.get('staff_id')
 
+    client = request.user
+
     if selected_date < date.today():
         custom_data = {'error': True, 'available_slots': [], 'date_chosen': ''}
         message = _('Date is in the past')
@@ -91,7 +93,7 @@ def get_available_slots_ajax(request):
             staff_member=sm.get_staff_member_first_name())
         custom_data['available_slots'] = []
         return json_response(message=message, custom_data=custom_data, success=False, error_code=ErrorCode.INVALID_DATE)
-    available_slots = get_available_slots_for_staff(selected_date, sm)
+    available_slots = get_available_slots_for_staff(selected_date, sm, client)
 
     # Check if the selected_date is today and filter out past slots
     if selected_date == date.today():
@@ -504,6 +506,7 @@ def prepare_reschedule_appointment(request, id_request):
         logger.error(f"Appointment with id_request {id_request} cannot be rescheduled")
         return render(request, 'error_pages/403_forbidden_rescheduling.html', context=context, status=403)
 
+    client_obj = ar.appointment.client
     service = ar.service
     selected_sm = ar.staff_member
     config = Config.objects.first()
@@ -512,7 +515,7 @@ def prepare_reschedule_appointment(request, id_request):
     staff_filter_criteria = {'id': ar.staff_member.id} if not staff_change_allowed_on_reschedule() else {
         'services_offered': ar.service}
     all_staff_members = StaffMember.objects.filter(**staff_filter_criteria)
-    available_slots = get_available_slots_for_staff(ar.date, selected_sm)
+    available_slots = get_available_slots_for_staff(ar.date, selected_sm, client_obj)
     page_title = _("Rescheduling appointment for {s}").format(s=service.name)
     page_description = _("Reschedule your appointment for {s} at {wn}.").format(s=service.name, wn=get_website_name())
     date_chosen = ar.date.strftime("%a, %B %d, %Y")
