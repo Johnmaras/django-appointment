@@ -104,7 +104,7 @@ def notify_admin_about_appointment(appointment, client_name: str):
                    template_url='email_sender/admin_new_appointment_email.html', context=email_context)
 
 
-def send_verification_email(user, email: str):
+def send_verification_email(user, email: str, verification_page_url: str = None):
     """
     Send an email with a verification code to the user for email verification.
 
@@ -115,7 +115,7 @@ def send_verification_email(user, email: str):
     :return: None
     """
     code = EmailVerificationCode.generate_code(user=user)
-    message = _("Your verification code is {code}.").format(code=code)
+    message = _("Your verification code is {code}.\r\n{verification_page_url}").format(code=code, verification_page_url=verification_page_url)
     send_email(recipient_list=[email], subject=_("Email Verification"), message=message)
 
 
