@@ -97,7 +97,7 @@ def get_available_slots_of_staff_members_ajax(request):
 
     if selected_date > date.today() + timedelta(days=30):
         custom_data = {'error': True, 'available_slots': [], 'date_chosen': ''}
-        message = _('Cant book more than 30 days in advance')
+        message = _("Can't book more than 30 days in advance")
         return json_response(message=message, custom_data=custom_data, success=False,
                              error_code=ErrorCode.FUTURE_DATE)
 
