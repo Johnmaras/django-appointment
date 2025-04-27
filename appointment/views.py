@@ -40,13 +40,92 @@ from appointment.utils.session import get_appointment_data_from_session, handle_
 from appointment.utils.view_helpers import get_locale, get_timezone_txt
 from .decorators import require_ajax
 from .messages_ import passwd_error, passwd_set_successfully
-from .services import get_appointments_and_slots, get_available_slots_for_staff
+from .services import get_appointments_and_slots, get_available_slots_for_staff, get_available_slots_for_staff_members
 from .settings import (APPOINTMENT_PAYMENT_URL, APPOINTMENT_THANK_YOU_URL, APP_TIME_ZONE)
 from .utils.date_time import convert_str_to_date, convert_str_to_time
 from .utils.error_codes import ErrorCode
 from .utils.json_context import get_generic_context_with_extra, json_response
 
 CLIENT_MODEL = get_user_model()
+
+
+@require_ajax
+def get_staff_for_slot(request):
+    """This view function handles AJAX requests to get staff members for a selected datetime slot."""
+    selected_date = convert_str_to_date(request.GET.get('selected_date'))
+    selected_time = request.GET.get('selected_time')
+    service_id = request.GET.get('service_id')
+
+    client = request.user
+
+    # If no service_id provided, return an empty list of staff members
+    if not service_id or service_id == 'none':
+        custom_data = {'staff_members': [], 'error': True}
+        message = _('No service selected')
+        return json_response(message=message, custom_data=custom_data, success=False,
+                             error_code=ErrorCode.SERVICE_ID_REQUIRED, status=403)
+
+    service = get_object_or_404(Service, pk=service_id)
+    staff_members_of_service = StaffMember.objects.filter(services_offered=service)
+
+    available_staff_members = []
+    for staff_member in staff_members_of_service:
+        available_slots = get_available_slots_for_staff(selected_date, staff_member, client)
+        # Check if the selected time is available for the staff member
+        if selected_time in available_slots:
+            available_staff_members.append(staff_member)
+
+    available_staff_members = [{"staff_id": staff_member.id, "staff_name": staff_member.get_staff_member_name()} for staff_member in
+                               available_staff_members]
+    custom_data = {'staff_members': available_staff_members}
+    message = _('Successfully retrieved staff members')
+    return json_response(message=message, custom_data=custom_data, success=True)
+
+
+@require_ajax
+def get_available_slots_of_staff_members_ajax(request):
+    selected_date = convert_str_to_date(request.GET.get('selected_date'))
+    service_id = request.GET.get('service_id')
+
+    client = request.user
+
+    if selected_date < date.today():
+        custom_data = {'error': True, 'available_slots': [], 'date_chosen': ''}
+        message = _('Date is in the past')
+        return json_response(message=message, custom_data=custom_data, success=False,
+                             error_code=ErrorCode.PAST_DATE)
+
+    if selected_date > date.today() + timedelta(days=30):
+        custom_data = {'error': True, 'available_slots': [], 'date_chosen': ''}
+        message = _('Cant book more than 30 days in advance')
+        return json_response(message=message, custom_data=custom_data, success=False,
+                             error_code=ErrorCode.FUTURE_DATE)
+
+    date_chosen = selected_date.strftime("%a, %B %d, %Y")
+    custom_data = {'date_chosen': date_chosen}
+
+    # If no service_id provided, return an empty list of staff members
+    if not service_id or service_id == 'none':
+        custom_data['staff_members'] = []
+        custom_data['error'] = True
+        message = _('No service selected')
+        return json_response(message=message, custom_data=custom_data, success=False,
+                             error_code=ErrorCode.SERVICE_ID_REQUIRED, status=403)
+
+    service = get_object_or_404(Service, pk=service_id)
+    staff_members_of_service = StaffMember.objects.filter(services_offered=service)
+
+    available_slots = get_available_slots_for_staff_members(selected_date, staff_members_of_service, client)
+
+    # Check if the selected_date is today and filter out past slots
+    if selected_date == date.today():
+        # Get the current time in EDT timezone
+        current_time_edt = datetime.now(pytz.timezone(APP_TIME_ZONE)).time()
+        available_slots = [slot for slot in available_slots if convert_str_to_time(slot) > current_time_edt]
+
+    custom_data['available_slots'] = list(available_slots)
+    message = _('No available slots for this date') if len(available_slots) == 0 else _('Successfully retrieved available slots')
+    return json_response(message=message, custom_data=custom_data, success=True)
 
 
 @require_ajax

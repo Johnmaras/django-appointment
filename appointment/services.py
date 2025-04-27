@@ -436,6 +436,48 @@ def get_available_slots_for_staff(date, staff_member, client):
     return [slot.strftime('%I:%M %p') for slot in slots]
 
 
+def get_available_slots_for_staff_members(date, staff_members, client):
+    """Calculate the available time slots for a given date and all available staff members.
+
+    :param date: The date for which to calculate the available slots
+    :param staff_members: A list of staff members for whom to calculate the available slots
+    :param client: The client for whom to calculate the available slots
+    :return: A list of available time slots as strings in the format '%I:%M %p' like ['10:00 AM', '10:30 AM']
+    """
+
+    all_slots = []
+    all_appointments = []
+    for staff_member in staff_members:
+        # Check if the provided date is a day off for the staff member
+        days_off_exist = check_day_off_for_staff(staff_member=staff_member, date=date)
+        if days_off_exist:
+            continue
+
+        # Check if the staff member works on the provided date
+        day_of_week = get_weekday_num_from_date()  # Python's weekday starts from Monday (0) to Sunday (6)
+        working_hours_dict = get_working_hours_for_staff_and_day(staff_member, day_of_week)
+        if not working_hours_dict:
+            continue
+
+        slots = calculate_staff_slots(date, staff_member)
+        slots = exclude_pending_reschedules(slots, staff_member, date)
+        all_slots.extend(slots)
+
+        appointments = get_appointments_for_date_and_time(date, working_hours_dict['start_time'],
+                                                          working_hours_dict['end_time'], staff_member,
+                                                          client)
+        all_appointments.extend(appointments)
+
+    all_slots = list(set(all_slots))  # Remove duplicates
+    all_slots.sort()
+
+    for staff_member in staff_members:
+        slot_duration = datetime.timedelta(minutes=staff_member.get_slot_duration())
+        all_slots = exclude_booked_slots(all_appointments, all_slots, slot_duration)
+
+    return [slot.strftime('%I:%M %p') for slot in all_slots]
+
+
 def get_finish_button_text(service) -> str:
     """
     Check if a service is free.

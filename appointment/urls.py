@@ -11,7 +11,8 @@ from django.urls import include, path
 from appointment.views import (
     appointment_client_information, appointment_request, appointment_request_submit, confirm_reschedule,
     default_thank_you, enter_verification_code, get_available_slots_ajax, get_next_available_date_ajax,
-    get_non_working_days_ajax, prepare_reschedule_appointment, reschedule_appointment_submit, set_passwd
+    get_non_working_days_ajax, prepare_reschedule_appointment, reschedule_appointment_submit, set_passwd,
+    get_staff_for_slot, get_available_slots_of_staff_members_ajax
 )
 from appointment.views_admin import (
     add_day_off, add_or_update_service, add_or_update_staff_info, add_working_hours, create_new_staff_member,
@@ -82,6 +83,8 @@ admin_urlpatterns = [
 ]
 
 ajax_urlpatterns = [
+    path('staff_of_slots_ajax/', get_staff_for_slot, name='staff_of_slots_ajax'),
+    path('all_available_slots/', get_available_slots_of_staff_members_ajax, name='all_available_slots_ajax'),
     path('available_slots/', get_available_slots_ajax, name='available_slots_ajax'),
     path('request_next_available_slot/<int:service_id>/', get_next_available_date_ajax,
          name='request_next_available_slot'),

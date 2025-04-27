@@ -361,7 +361,7 @@ def user_has_already_booked_slot(appointment):
 
 
 def is_session_full(appointment):
-    s = Session.objects.filter(appointments__in=[appointment]).first()
+    s = Session.objects.filter(appointments__in=[appointment]).first()  # Replace with exists()
     return s is not None and s.appointments.count() >= settings.MAX_SESSION_CAPACITY
 
 
