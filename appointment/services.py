@@ -396,7 +396,7 @@ def get_available_slots(date, appointments):
 
     :param date: The date for which to calculate the available slot
     :param appointments: A list of Appointment objects
-    :return: A list of available time slots as strings in the format '%I:%M %p' like ['10:00 AM', '10:30 AM']
+    :return: A list of available time slots as strings in the format '%H:%M' like ['10:00', '22:30']
     """
 
     start_time, end_time, slot_duration, buff_time = get_times_from_config(date)
@@ -404,7 +404,7 @@ def get_available_slots(date, appointments):
     buffer_time = now + buff_time if date == now.date() else now
     slots = calculate_slots(start_time, end_time, buffer_time, slot_duration)
     slots = exclude_booked_slots(appointments, slots, slot_duration)
-    return [slot.strftime('%I:%M %p') for slot in slots]
+    return [slot.strftime('%H:%M') for slot in slots]
 
 
 def get_available_slots_for_staff(date, staff_member, client):
@@ -412,7 +412,7 @@ def get_available_slots_for_staff(date, staff_member, client):
 
     :param date: The date for which to calculate the available slots
     :param staff_member: The staff member for which to calculate the available slots
-    :return: A list of available time slots as strings in the format '%I:%M %p' like ['10:00 AM', '10:30 AM']
+    :return: A list of available time slots as strings in the format '%H:%M' like ['10:00', '22:30']
     """
     # Check if the provided date is a day off for the staff member
     days_off_exist = check_day_off_for_staff(staff_member=staff_member, date=date)
@@ -433,7 +433,7 @@ def get_available_slots_for_staff(date, staff_member, client):
                                                       client)
     slots = exclude_booked_slots(appointments, slots, slot_duration)
 
-    return [slot.strftime('%I:%M %p') for slot in slots]
+    return [slot.strftime('%H:%M') for slot in slots]
 
 
 def get_available_slots_for_staff_members(date, staff_members, client):
@@ -442,7 +442,7 @@ def get_available_slots_for_staff_members(date, staff_members, client):
     :param date: The date for which to calculate the available slots
     :param staff_members: A list of staff members for whom to calculate the available slots
     :param client: The client for whom to calculate the available slots
-    :return: A list of available time slots as strings in the format '%I:%M %p' like ['10:00 AM', '10:30 AM']
+    :return: A list of available time slots as strings in the format '%H:%M' like ['10:00', '22:30']
     """
 
     all_slots = []
@@ -475,7 +475,7 @@ def get_available_slots_for_staff_members(date, staff_members, client):
         slot_duration = datetime.timedelta(minutes=staff_member.get_slot_duration())
         all_slots = exclude_booked_slots(all_appointments, all_slots, slot_duration)
 
-    return [slot.strftime('%I:%M %p') for slot in all_slots]
+    return [slot.strftime('%H:%M') for slot in all_slots]
 
 
 def get_finish_button_text(service) -> str:

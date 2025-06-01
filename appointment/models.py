@@ -904,6 +904,10 @@ class WorkingHours(models.Model):
     def clean(self):
         if self.start_time >= self.end_time:
             raise ValidationError("Start time must be before end time")
+        if self.start_time < self.staff_member.get_lead_time():
+            raise ValidationError(_("Start time cannot be before staff member's lead time."))
+        if self.end_time > self.staff_member.get_finish_time():
+            raise ValidationError(_("End time cannot be after staff member's finish time."))
 
     def get_start_time(self):
         return self.start_time
