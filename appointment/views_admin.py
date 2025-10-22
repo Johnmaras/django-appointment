@@ -20,7 +20,7 @@ from appointment.decorators import (
     require_ajax, require_staff_or_superuser, require_superuser, require_user_authenticated)
 from appointment.forms import PersonalInformationForm, ServiceForm, StaffAppointmentInformationForm
 from appointment.messages_ import appt_updated_successfully
-from appointment.models import Appointment, DayOff, StaffMember, WorkingHours
+from appointment.models import Appointment, DayOff, StaffMember, WorkingHours, Session
 from appointment.services import (
     create_new_appointment, create_staff_member_service, email_change_verification_service,
     fetch_user_appointments, handle_entity_management_request, handle_service_management_request,
@@ -496,7 +496,10 @@ def delete_appointment(request, appointment_id):
     if not has_permission_to_delete_appointment(request.user, appointment):
         message = _("You can only delete your own appointments.")
         return handle_unauthorized_response(request, message, 'html')
+    appt_session = Session.objects.filter(appointments__in=[appointment]).first()
     appointment.delete()
+    if len(appt_session.appointments) == 0:
+        appt_session.delete()
     messages.success(request, _("Appointment deleted successfully!"))
     return redirect('appointment:get_user_appointments')
 
@@ -510,7 +513,11 @@ def delete_appointment_ajax(request):
     if not has_permission_to_delete_appointment(request.user, appointment):
         message = _("You can only delete your own appointments.")
         return json_response(message, status=403, success=False, error_code=ErrorCode.NOT_AUTHORIZED)
+    appt_session = Session.objects.filter(appointments__in=[appointment]).first()
     appointment.delete()
+    if len(appt_session.appointments) == 0:
+        appt_session.delete()
+
     return json_response(_("Appointment deleted successfully."))
 
 
