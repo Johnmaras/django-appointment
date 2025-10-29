@@ -498,7 +498,7 @@ def delete_appointment(request, appointment_id):
         return handle_unauthorized_response(request, message, 'html')
     appt_session = Session.objects.filter(appointments__in=[appointment]).first()
     appointment.delete()
-    if len(appt_session.appointments) == 0:
+    if len(appt_session.appointments.all()) == 0:
         appt_session.delete()
     messages.success(request, _("Appointment deleted successfully!"))
     return redirect('appointment:get_user_appointments')
@@ -515,7 +515,7 @@ def delete_appointment_ajax(request):
         return json_response(message, status=403, success=False, error_code=ErrorCode.NOT_AUTHORIZED)
     appt_session = Session.objects.filter(appointments__in=[appointment]).first()
     appointment.delete()
-    if len(appt_session.appointments) == 0:
+    if len(appt_session.appointments.all()) == 0:
         appt_session.delete()
 
     return json_response(_("Appointment deleted successfully."))
