@@ -882,6 +882,12 @@ class WorkingHours(models.Model):
     day_of_week = models.PositiveIntegerField(choices=DAYS_OF_WEEK)
     start_time = models.TimeField()
     end_time = models.TimeField()
+    buffer_time = models.FloatField(
+        blank=True, null=True,
+        help_text=_("Time between appointments. "
+                    "e.g: If an appointment ends at 10:00 AM and the buffer time is 15 minutes, "
+                    "the next appointment can start at 10:15 AM.")
+    )
 
     # meta data
     created_at = models.DateTimeField(auto_now_add=True)
@@ -922,8 +928,12 @@ class WorkingHours(models.Model):
     def is_owner(self, user_id):
         return self.staff_member.user.id == user_id
 
+    def get_appointment_buffer_time_text(self):
+        # convert buffer time (which is in minutes) in day hours minutes if necessary
+        return convert_minutes_in_human_readable_format(self.buffer_time)
+
     class Meta:
-        unique_together = ['staff_member', 'day_of_week']
+        unique_together = ['staff_member', 'day_of_week', 'start_time']
 
 
 class Session(models.Model):
@@ -934,3 +944,15 @@ class Session(models.Model):
     end_time = models.TimeField()
 
     staff_member = models.ForeignKey(StaffMember, on_delete=models.CASCADE)
+
+    @staticmethod
+    def get_specific_session(date, start_time, staff_member):
+        try:
+            session = Session.objects.get(
+                date=date,
+                start_time=start_time,
+                staff_member=staff_member
+            )
+            return session
+        except Session.DoesNotExist:
+            return None

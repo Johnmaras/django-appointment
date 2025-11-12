@@ -70,7 +70,7 @@ def get_staff_for_slot(request):
 
     available_staff_members = []
     for staff_member in staff_members_of_service:
-        available_slots = get_available_slots_for_staff(selected_date, staff_member, client)
+        available_slots = get_available_slots_for_staff(selected_date, staff_member, client, service)
         # Check if the selected time is available for the staff member
         if selected_time in available_slots:
             available_staff_members.append(staff_member)
@@ -115,7 +115,7 @@ def get_available_slots_of_staff_members_ajax(request):
     service = get_object_or_404(Service, pk=service_id)
     staff_members_of_service = StaffMember.objects.filter(services_offered=service)
 
-    available_slots = get_available_slots_for_staff_members(selected_date, staff_members_of_service, client)
+    available_slots = get_available_slots_for_staff_members(selected_date, staff_members_of_service, client, service)
 
     # Check if the selected_date is today and filter out past slots
     if selected_date == date.today():
@@ -224,7 +224,7 @@ def get_next_available_date_ajax(request, service_id):
             is_working_day_ = is_working_day(staff_member=staff_member, day=weekday_num)
 
             if not is_day_off and is_working_day_:
-                x, available_slots = get_appointments_and_slots(potential_date, service)
+                x, available_slots = get_appointments_and_slots(potential_date, staff_member, service)
                 if available_slots:
                     next_available_date = potential_date
 
@@ -279,12 +279,12 @@ def appointment_request(request, service_id=None, staff_member_id=None):
         # If only one staff member for a service, choose them by default and fetch their slots.
         if all_staff_members.count() == 1:
             staff_member = all_staff_members.first()
-            x, available_slots = get_appointments_and_slots(date.today(), service)
+            x, available_slots = get_appointments_and_slots(date.today(), staff_member, service)
 
     # If a specific staff member is selected, fetch their slots.
     if staff_member_id:
         staff_member = get_object_or_404(StaffMember, pk=staff_member_id)
-        y, available_slots = get_appointments_and_slots(date.today(), service)
+        y, available_slots = get_appointments_and_slots(date.today(), staff_member, service)
 
     page_title = f"{service.name} - {get_website_name()}"
     page_description = _("Book an appointment for {s} at {wn}.").format(s=service.name, wn=get_website_name())

@@ -33,6 +33,7 @@ from appointment.utils.error_codes import ErrorCode
 from appointment.utils.json_context import convert_appointment_to_json, get_generic_context, json_response
 from appointment.utils.permissions import check_entity_ownership
 from appointment.utils.session import handle_email_change
+from appointment.utils.db_helpers import exclude_full_sessions
 
 
 def fetch_user_appointments(user):
@@ -391,7 +392,7 @@ def save_appt_date_time(appt_start_time, appt_date, appt_id, request):
     return appt
 
 
-def get_available_slots(date, appointments):
+def get_available_slots(date, appointments, staff_member):
     """Calculate the available time slots for a given date and a list of appointments.
 
     :param date: The date for which to calculate the available slot
@@ -403,11 +404,12 @@ def get_available_slots(date, appointments):
     now = timezone.now()
     buffer_time = now + buff_time if date == now.date() else now
     slots = calculate_slots(start_time, end_time, buffer_time, slot_duration)
+    slots = exclude_full_sessions(date, slots, staff_member)
     slots = exclude_booked_slots(appointments, slots, slot_duration)
     return [slot.strftime('%H:%M') for slot in slots]
 
 
-def get_available_slots_for_staff(date, staff_member, client):
+def get_available_slots_for_staff(date, staff_member, client, service):
     """Calculate the available time slots for a given date and a staff member.
 
     :param date: The date for which to calculate the available slots
@@ -420,14 +422,15 @@ def get_available_slots_for_staff(date, staff_member, client):
         return []
 
     # Check if the staff member works on the provided date
-    day_of_week = get_weekday_num_from_date()  # Python's weekday starts from Monday (0) to Sunday (6)
+    day_of_week = get_weekday_num_from_date(date)  # Python's weekday starts from Monday (0) to Sunday (6)
     working_hours_dict = get_working_hours_for_staff_and_day(staff_member, day_of_week)
     if not working_hours_dict:
         return []
 
     slot_duration = datetime.timedelta(minutes=staff_member.get_slot_duration())
-    slots = calculate_staff_slots(date, staff_member)
+    slots = calculate_staff_slots(date, staff_member, service)
     slots = exclude_pending_reschedules(slots, staff_member, date)
+    slots = exclude_full_sessions(date, slots, staff_member)
     appointments = get_appointments_for_date_and_time(date, working_hours_dict['start_time'],
                                                       working_hours_dict['end_time'], staff_member,
                                                       client)
@@ -436,7 +439,7 @@ def get_available_slots_for_staff(date, staff_member, client):
     return [slot.strftime('%H:%M') for slot in slots]
 
 
-def get_available_slots_for_staff_members(date, staff_members, client):
+def get_available_slots_for_staff_members(date, staff_members, client, service):
     """Calculate the available time slots for a given date and all available staff members.
 
     :param date: The date for which to calculate the available slots
@@ -454,13 +457,15 @@ def get_available_slots_for_staff_members(date, staff_members, client):
             continue
 
         # Check if the staff member works on the provided date
-        day_of_week = get_weekday_num_from_date()  # Python's weekday starts from Monday (0) to Sunday (6)
+        day_of_week = get_weekday_num_from_date(date)  # Python's weekday starts from Monday (0) to Sunday (6)
         working_hours_dict = get_working_hours_for_staff_and_day(staff_member, day_of_week)
         if not working_hours_dict:
             continue
 
-        slots = calculate_staff_slots(date, staff_member)
+        slots = calculate_staff_slots(date, staff_member, service)
         slots = exclude_pending_reschedules(slots, staff_member, date)
+        slots = exclude_full_sessions(date, slots, staff_member)
+
         all_slots.extend(slots)
 
         appointments = get_appointments_for_date_and_time(date, working_hours_dict['start_time'],
@@ -490,7 +495,7 @@ def get_finish_button_text(service) -> str:
     return _("Finish")
 
 
-def get_appointments_and_slots(date_, service=None):
+def get_appointments_and_slots(date_, staff_member, service=None):
     """
     Get appointments and available slots for a given date and service.
 
@@ -508,7 +513,7 @@ def get_appointments_and_slots(date_, service=None):
                                                   appointment_request__date=date_)
     else:
         appointments = Appointment.objects.filter(appointment_request__date=date_)
-    available_slots = get_available_slots(date_, appointments)
+    available_slots = get_available_slots(date_, appointments, staff_member)
     return appointments, available_slots
 
 

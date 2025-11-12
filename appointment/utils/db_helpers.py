@@ -49,15 +49,13 @@ def calculate_slots(start_time, end_time, buffer_time, slot_duration):
     :return: A list of available slots.
     """
     slots = []
-    buffer_time = buffer_time.replace(tzinfo=None)
     while start_time + slot_duration <= end_time:
-        if start_time >= buffer_time:
-            slots.append(start_time)
-        start_time += slot_duration
+        slots.append(start_time)
+        start_time += slot_duration + buffer_time
     return slots
 
 
-def calculate_staff_slots(date, staff_member):
+def calculate_staff_slots(date, staff_member, service):
     """Calculate the available slots for the given staff member on the given date.
 
     :param date: The date to calculate the slots for.
@@ -68,21 +66,28 @@ def calculate_staff_slots(date, staff_member):
     weekday_num = get_weekday_num_from_date(date)
     if not is_working_day(staff_member, weekday_num):
         return []
-    staff_member_start_time = get_staff_member_start_time(staff_member, date)
-    start_time = datetime.datetime.combine(date, staff_member_start_time)
-    end_time = datetime.datetime.combine(date, get_staff_member_end_time(staff_member, date))
 
-    # Convert the buffer duration in minutes to a timedelta object
-    buffer_duration_minutes = get_staff_member_buffer_time(staff_member, date)
-    buffer_duration = datetime.timedelta(minutes=buffer_duration_minutes)
-    buffer_time_init = datetime.datetime.combine(date, staff_member_start_time)
-    buffer_time = buffer_time_init + buffer_duration
+    all_slots = []
 
-    # Convert slot duration to a timedelta object
-    slot_duration_minutes = get_staff_member_slot_duration(staff_member, date)
-    slot_duration = datetime.timedelta(minutes=slot_duration_minutes)
+    working_hours = WorkingHours.objects.filter(staff_member=staff_member, day_of_week=weekday_num).all()
+    for wh in working_hours:
+        start_time = datetime.datetime.combine(date, wh.start_time)
+        end_time = datetime.datetime.combine(date, wh.end_time)
 
-    return calculate_slots(start_time, end_time, buffer_time, slot_duration)
+        # staff_member_start_time = get_staff_member_start_time(staff_member, date)
+        # start_time = datetime.datetime.combine(date, staff_member_start_time)
+        # end_time = datetime.datetime.combine(date, get_staff_member_end_time(staff_member, date))
+
+        # Convert the buffer duration in minutes to a timedelta object
+        buffer_duration_minutes = wh.buffer_time
+        buffer_time = datetime.timedelta(minutes=buffer_duration_minutes)
+
+        # Convert slot duration to a timedelta object
+        slot_duration = get_service_slot_duration(service)
+
+        all_slots.extend(calculate_slots(start_time, end_time, buffer_time, slot_duration))
+
+    return all_slots
 
 
 def check_day_off_for_staff(staff_member, date) -> bool:
@@ -336,12 +341,22 @@ def exclude_booked_slots(appointments, slots, slot_duration=None):
             appointment_start_time = appointment.get_start_time()
             appointment_end_time = appointment.get_end_time()
             # TODO Possibly remove the check for appointment_start_time and appointment_end_time
-            if appointment_start_time < slot_end and slot < appointment_end_time and (
-                    is_session_full(appointment) or user_has_already_booked_slot(appointment)):
+            if appointment_start_time < slot_end and slot < appointment_end_time and user_has_already_booked_slot(
+                    appointment):
                 is_available = False
                 break
         if is_available:
             available_slots.append(slot)
+    return available_slots
+
+
+def exclude_full_sessions(date, slots, staff_member):
+    available_slots = []
+
+    for slot in slots:
+        if not is_session_full(date, slot, staff_member):
+            available_slots.append(slot)
+
     return available_slots
 
 
@@ -360,9 +375,9 @@ def user_has_already_booked_slot(appointment):
     ).exists()
 
 
-def is_session_full(appointment):
-    s = Session.objects.filter(appointments__in=[appointment]).first()  # Replace with exists()
-    return s is not None and s.appointments.count() >= settings.MAX_SESSION_CAPACITY
+def is_session_full(date, start_time, staff_member):
+    s = Session.get_specific_session(date, start_time, staff_member)
+    return s and s.appointments.count() >= settings.MAX_SESSION_CAPACITY
 
 
 def exclude_pending_reschedules(slots, staff_member, date):
@@ -595,6 +610,16 @@ def get_staff_member_from_user_id_or_logged_in(user, user_id=None):
     except StaffMember.DoesNotExist:
         pass
     return staff_member
+
+
+def get_service_slot_duration(service: Service) -> datetime.timedelta:
+    """Return the slot duration for the given service."""
+
+    slot_duration = service.duration
+    if not slot_duration:
+        slot_duration_minutes = get_appointment_slot_duration()
+        slot_duration = datetime.timedelta(minutes=slot_duration_minutes)
+    return slot_duration
 
 
 def get_staff_member_slot_duration(staff_member: StaffMember, date: datetime.date) -> int:
