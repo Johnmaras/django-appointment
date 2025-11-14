@@ -14,6 +14,7 @@ from django.apps import apps
 from django.conf import settings
 from django.core.cache import cache
 from django.core.exceptions import FieldDoesNotExist
+from django.db.models import Q
 from django.urls import reverse
 from django.utils import timezone
 from django_q.models import Schedule
@@ -744,9 +745,13 @@ def is_working_day(staff_member: StaffMember, day: int) -> bool:
     return day in working_days
 
 
-def working_hours_exist(day_of_week, staff_member):
+def working_hours_exist(day_of_week, staff_member, start_time, end_time):
     """Check if working hours exist for the given day of the week and staff member."""
-    return WorkingHours.objects.filter(day_of_week=day_of_week, staff_member=staff_member).exists()
+    return WorkingHours.objects.filter(day_of_week=day_of_week, staff_member=staff_member).filter(
+        Q(start_time__lte=start_time, end_time__gte=start_time) |
+        Q(start_time__lte=end_time, end_time__gte=end_time) |
+        Q(start_time__gte=start_time, end_time__lte=end_time)
+    ).exists()
 
 
 def get_absolute_url_(relative_url, request):

@@ -134,7 +134,7 @@ class StaffDaysOffForm(forms.ModelForm):
 class StaffWorkingHoursForm(forms.ModelForm):
     class Meta:
         model = WorkingHours
-        fields = ['day_of_week', 'start_time', 'end_time']
+        fields = ['day_of_week', 'start_time', 'end_time', 'buffer_time']
 
 
 class ServiceForm(forms.ModelForm):

@@ -247,7 +247,7 @@ def handle_working_hours_form(staff_member, day_of_week, start_time, end_time, a
 
     if add:
         # Create new working hours
-        if working_hours_exist(day_of_week=day_of_week, staff_member=staff_member):
+        if working_hours_exist(day_of_week=day_of_week, staff_member=staff_member, start_time=start_time, end_time=end_time):
             return json_response(_("Working hours already exist for this day."), status=400, success=False,
                                  error_code=ErrorCode.WORKING_HOURS_CONFLICT)
         wk = WorkingHours(staff_member=staff_member, day_of_week=day_of_week, start_time=start_time, end_time=end_time)
