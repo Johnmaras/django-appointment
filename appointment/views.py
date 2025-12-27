@@ -12,6 +12,7 @@ import pytz
 from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.forms import SetPasswordForm
+from django.contrib.auth.models import User
 from django.db.models import Q
 from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render
@@ -55,8 +56,9 @@ def get_staff_for_slot(request):
     selected_date = convert_str_to_date(request.GET.get('selected_date'))
     selected_time = request.GET.get('selected_time')
     service_id = request.GET.get('service_id')
+    user_id = request.GET.get('user_id')
 
-    client = request.user
+    client = get_object_or_404(User, pk=user_id)
 
     # If no service_id provided, return an empty list of staff members
     if not service_id or service_id == 'none':
@@ -86,8 +88,9 @@ def get_staff_for_slot(request):
 def get_available_slots_of_staff_members_ajax(request):
     selected_date = convert_str_to_date(request.GET.get('selected_date'))
     service_id = request.GET.get('service_id')
+    user_id = request.GET.get('user_id')
 
-    client = request.user
+    client = get_object_or_404(User, pk=user_id)
 
     if selected_date < date.today():
         custom_data = {'error': True, 'available_slots': [], 'date_chosen': ''}
@@ -137,8 +140,9 @@ def get_available_slots_ajax(request):
     """
     selected_date = convert_str_to_date(request.GET.get('selected_date'))
     staff_id = request.GET.get('staff_id')
+    user_id = request.GET.get('user_id')
 
-    client = request.user
+    client = get_object_or_404(User, pk=user_id)
 
     if selected_date < date.today():
         custom_data = {'error': True, 'available_slots': [], 'date_chosen': ''}

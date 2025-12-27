@@ -133,7 +133,7 @@ class Service(models.Model):
         if seconds:
             parts.append(f"{seconds} second{'s' if seconds > 1 else ''}")
 
-        return ' '.join(parts)
+        return _(' '.join(parts))
 
     def get_price(self):
         # Check if the decimal part is 0
@@ -147,7 +147,7 @@ class Service(models.Model):
 
     def get_price_text(self):
         if self.price == 0:
-            return "Free"
+            return _("Free")
         else:
             return f"{self.get_price()}{self.get_currency_icon()}"
 
@@ -159,7 +159,7 @@ class Service(models.Model):
 
     def get_down_payment_text(self):
         if self.down_payment == 0:
-            return f"Free"
+            return _("Free")
         return f"{self.get_down_payment()}{self.get_currency_icon()}"
 
     def get_image_url(self):
