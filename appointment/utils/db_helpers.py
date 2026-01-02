@@ -353,12 +353,15 @@ def exclude_booked_slots(appointments, slots, slot_duration=None):
 
 def exclude_full_sessions(date, slots, staff_member):
     available_slots = []
+    full_slots = []
 
     for slot in slots:
         if not is_session_full(date, slot, staff_member):
             available_slots.append(slot)
+        else:
+            full_slots.append(slot)
 
-    return available_slots
+    return available_slots, full_slots
 
 
 def user_has_already_booked_slot(appointment):

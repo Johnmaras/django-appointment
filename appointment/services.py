@@ -404,9 +404,14 @@ def get_available_slots(date, appointments, staff_member):
     now = timezone.now()
     buffer_time = now + buff_time if date == now.date() else now
     slots = calculate_slots(start_time, end_time, buffer_time, slot_duration)
-    slots = exclude_full_sessions(date, slots, staff_member)
-    slots = exclude_booked_slots(appointments, slots, slot_duration)
-    return [slot.strftime('%H:%M') for slot in slots]
+    slots, full_slots = exclude_full_sessions(date, slots, staff_member)
+    all_slots = slots + full_slots
+    all_slots = exclude_booked_slots(appointments, all_slots, slot_duration)
+
+    full_slots = [slot.strftime('%H:%M') for slot in full_slots]
+    formatted_slots = [slot.strftime('%H:%M') for slot in all_slots]
+    formatted_slots = list(map(lambda x: x + ' (Full)' if x in full_slots else x, formatted_slots))
+    return formatted_slots
 
 
 def get_available_slots_for_staff(date, staff_member, client, service):
@@ -430,13 +435,17 @@ def get_available_slots_for_staff(date, staff_member, client, service):
     slot_duration = datetime.timedelta(minutes=staff_member.get_slot_duration())
     slots = calculate_staff_slots(date, staff_member, service)
     slots = exclude_pending_reschedules(slots, staff_member, date)
-    slots = exclude_full_sessions(date, slots, staff_member)
+    slots, full_slots = exclude_full_sessions(date, slots, staff_member)
     appointments = get_appointments_for_date_and_time(date, working_hours_dict['start_time'],
                                                       working_hours_dict['end_time'], staff_member,
                                                       client)
-    slots = exclude_booked_slots(appointments, slots, slot_duration)
+    all_slots = slots + full_slots
+    all_slots = exclude_booked_slots(appointments, all_slots, slot_duration)
 
-    return [slot.strftime('%H:%M') for slot in slots]
+    full_slots = [slot.strftime('%H:%M') for slot in full_slots]
+    formatted_slots = [slot.strftime('%H:%M') for slot in all_slots]
+    formatted_slots = list(map(lambda x: x + ' (Full)' if x in full_slots else x, formatted_slots))
+    return formatted_slots
 
 
 def get_available_slots_for_staff_members(date, staff_members, client, service):
@@ -450,6 +459,8 @@ def get_available_slots_for_staff_members(date, staff_members, client, service):
 
     all_slots = []
     all_appointments = []
+
+    all_full_slots = []
     for staff_member in staff_members:
         # Check if the provided date is a day off for the staff member
         days_off_exist = check_day_off_for_staff(staff_member=staff_member, date=date)
@@ -464,23 +475,29 @@ def get_available_slots_for_staff_members(date, staff_members, client, service):
 
         slots = calculate_staff_slots(date, staff_member, service)
         slots = exclude_pending_reschedules(slots, staff_member, date)
-        slots = exclude_full_sessions(date, slots, staff_member)
+        slots, full_slots = exclude_full_sessions(date, slots, staff_member)
 
         all_slots.extend(slots)
+        all_full_slots.extend(full_slots)
 
         appointments = get_appointments_for_date_and_time(date, working_hours_dict['start_time'],
                                                           working_hours_dict['end_time'], staff_member,
                                                           client)
         all_appointments.extend(appointments)
 
-    all_slots = list(set(all_slots))  # Remove duplicates
+    all_slots = set(all_slots)
+    all_slots.update(all_full_slots)
+    all_slots = list(all_slots)
     all_slots.sort()
 
     for staff_member in staff_members:
         slot_duration = datetime.timedelta(minutes=staff_member.get_slot_duration())
         all_slots = exclude_booked_slots(all_appointments, all_slots, slot_duration)
 
-    return [slot.strftime('%H:%M') for slot in all_slots]
+    all_full_slots = [slot.strftime('%H:%M') for slot in all_full_slots]
+    formatted_slots = [slot.strftime('%H:%M') for slot in all_slots]
+    formatted_slots = list(map(lambda x: x + ' (Full)' if x in all_full_slots else x, formatted_slots))
+    return formatted_slots
 
 
 def get_finish_button_text(service) -> str:
