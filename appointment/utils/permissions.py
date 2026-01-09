@@ -34,4 +34,4 @@ def has_permission_to_delete_appointment(user, appointment):
     Check if the user has permission to delete the given appointment.
     Returns True if the user has permission, False otherwise.
     """
-    return check_extensive_permissions(appointment.get_staff_member().user_id, user, appointment)
+    return user == appointment.client or check_extensive_permissions(appointment.get_staff_member().user_id, user, appointment)
