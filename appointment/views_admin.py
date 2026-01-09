@@ -490,7 +490,6 @@ def get_service_list(request, response_type='html'):
 
 
 @require_user_authenticated
-@require_staff_or_superuser
 def delete_appointment(request, appointment_id):
     appointment = get_object_or_404(Appointment, pk=appointment_id)
     if not has_permission_to_delete_appointment(request.user, appointment):
@@ -505,7 +504,6 @@ def delete_appointment(request, appointment_id):
 
 
 @require_user_authenticated
-@require_staff_or_superuser
 def delete_appointment_ajax(request):
     data = json.loads(request.body)
     appointment_id = data.get("appointment_id")
