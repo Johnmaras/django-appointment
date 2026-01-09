@@ -973,9 +973,13 @@ class Session(models.Model):
     def has_waiting_list(self, user):
         return WaitingList.objects.filter(session=self, user=user).exists()
 
-    def threshold_pass(self):
+    def has_passed(self):
         session_datetime = pendulum.from_format(f"{self.date} {self.start_time}", "YYYY-MM-DD HH:mm:ss")
-        return session_datetime.is_future() and session_datetime.diff(pendulum.now()).in_hours() < 8
+        return session_datetime.is_past()
+
+    def cancellation_threshold_pass(self):
+        session_datetime = pendulum.from_format(f"{self.date} {self.start_time}", "YYYY-MM-DD HH:mm:ss")
+        return not self.has_passed() and session_datetime.diff(pendulum.now()).in_hours() < 8
 
 
 
