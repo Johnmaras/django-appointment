@@ -11,6 +11,7 @@ import random
 import string
 import uuid
 
+import pendulum
 from babel.numbers import get_currency_symbol
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -971,6 +972,11 @@ class Session(models.Model):
 
     def has_waiting_list(self, user):
         return WaitingList.objects.filter(session=self, user=user).exists()
+
+    def threshold_pass(self):
+        session_datetime = pendulum.from_format(f"{self.date} {self.start_time}", "YYYY-MM-DD HH:mm:ss")
+        return session_datetime.is_future() and session_datetime.diff(pendulum.now()).in_hours() < 8
+
 
 
 class Client(models.Model):
