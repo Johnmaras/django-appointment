@@ -21,6 +21,8 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from phonenumber_field.modelfields import PhoneNumberField
 
+from django.db.models import Q
+
 from appointment.utils.date_time import convert_minutes_in_human_readable_format, get_timestamp, get_weekday_num, \
     time_difference
 from appointment.utils.view_helpers import generate_random_id, get_locale
@@ -936,6 +938,16 @@ class WorkingHours(models.Model):
         unique_together = ['staff_member', 'day_of_week', 'start_time']
 
 
+class WaitingList(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    service = models.ForeignKey('appointment.Service', on_delete=models.CASCADE)
+    session = models.ForeignKey('appointment.Session', on_delete=models.CASCADE)
+    date_joined = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'session')
+
+
 class Session(models.Model):
     appointments = models.ManyToManyField(Appointment)
 
@@ -956,3 +968,77 @@ class Session(models.Model):
             return session
         except Session.DoesNotExist:
             return None
+
+    def has_waiting_list(self, user):
+        return WaitingList.objects.filter(session=self, user=user).exists()
+
+
+class Client(models.Model):
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+
+    phone = models.CharField(max_length=20)
+    address = models.CharField(max_length=200)
+    city = models.CharField(max_length=100)
+    state = models.CharField(max_length=100)
+    zip_code = models.CharField(max_length=10)
+
+    def __str__(self):
+        return str(self.user)
+
+    def can_book_appointment(self, appointment_date):
+        return self.membership_set.filter(is_active=True,
+                                          avail_credits__gt=0,
+                                          start_date__lte=appointment_date,
+                                          end_date__gte=appointment_date).exists()
+
+    def apply_appointment_request(self, appointment_date, membership=None):
+        if self.can_book_appointment(appointment_date):
+            memberships = self.membership_set.filter(
+                Q(is_active=True) & Q(avail_credits__gt=0) & Q(end_date__gte=appointment_date) & Q(
+                    start_date__lte=appointment_date)).order_by("end_date", "avail_credits").all()
+            if not membership or not memberships.contains(membership):
+                membership = memberships.first()
+            return membership.consume_credits()
+        return False
+
+    def is_member(self):
+        return self.membership_set.filter(is_active=True, end_date__gte=datetime.date.today()).exists()
+
+    def get_memberships(self, service=None):
+        if service is None:
+            return self.membership_set.filter(is_active=True).all()
+        return self.membership_set.filter(is_active=True, membership_type__valid_services__in=[service]).all()
+
+
+class Membership(models.Model):
+    avail_credits = models.IntegerField(
+        help_text="Number of sessions a client can attend until the end of the subscription")
+
+    start_date = models.DateField(help_text="When the membership started")
+    end_date = models.DateField(help_text="When the membership ends")
+
+    client = models.ForeignKey('Client', on_delete=models.CASCADE)
+
+    is_active = models.BooleanField(default=True)
+
+    membership_type = models.ForeignKey('MembershipType', on_delete=models.PROTECT)
+
+    def consume_credits(self):
+        if self.avail_credits > 0:
+            self.avail_credits -= 1
+            self.save()
+            return True
+        return False
+
+
+class MembershipType(models.Model):
+    name = models.CharField(max_length=100)
+    description = models.TextField(max_length=500)
+    perks = models.TextField(max_length=500)
+    price = models.PositiveSmallIntegerField()
+    currency = models.TextField(max_length=3, default="EUR")
+    credits = models.IntegerField()
+    duration = models.PositiveSmallIntegerField()
+    valid_services = models.ManyToManyField('appointment.Service',
+                                            help_text="Services that are valid for this membership")
+    is_active = models.BooleanField(default=True)
