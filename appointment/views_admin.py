@@ -489,6 +489,8 @@ def get_service_list(request, response_type='html'):
     return render(request, 'administration/service_list.html', context=context)
 
 
+# TODO Add credits refund
+
 @require_user_authenticated
 def delete_appointment(request, appointment_id):
     appointment = get_object_or_404(Appointment, pk=appointment_id)

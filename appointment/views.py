@@ -71,15 +71,27 @@ def get_staff_for_slot(request):
     staff_members_of_service = StaffMember.objects.filter(services_offered=service)
 
     available_staff_members = []
+    full_staff_members = []
     for staff_member in staff_members_of_service:
-        available_slots = get_available_slots_for_staff(selected_date, staff_member, client, service)
+        available_slots, full_slots = get_available_slots_for_staff(selected_date, staff_member, client, service)
         # Check if the selected time is available for the staff member
         if selected_time in available_slots:
             available_staff_members.append(staff_member)
+        if selected_time in full_slots:
+            full_staff_members.append(staff_member)
 
-    available_staff_members = [{"staff_id": staff_member.id, "staff_name": staff_member.get_staff_member_name()} for staff_member in
+    available_staff_members = [{"staff_id": staff_member.id, "staff_name": staff_member.get_staff_member_name()} for
+                               staff_member in
                                available_staff_members]
-    custom_data = {'staff_members': available_staff_members}
+
+    full_staff_members = [{"staff_id": staff_member.id, "staff_name": staff_member.get_staff_member_name() + " (Full)"} for
+                          staff_member in
+                          full_staff_members]
+
+    all_staff_members = available_staff_members + full_staff_members
+    custom_data = {
+        'staff_members': all_staff_members,
+    }
     message = _('Successfully retrieved staff members')
     return json_response(message=message, custom_data=custom_data, success=True)
 
@@ -127,7 +139,8 @@ def get_available_slots_of_staff_members_ajax(request):
         available_slots = [slot for slot in available_slots if convert_str_to_time(slot) > current_time_edt]
 
     custom_data['available_slots'] = list(available_slots)
-    message = _('No available slots for this date') if len(available_slots) == 0 else _('Successfully retrieved available slots')
+    message = _('No available slots for this date') if len(available_slots) == 0 else _(
+        'Successfully retrieved available slots')
     return json_response(message=message, custom_data=custom_data, success=True)
 
 

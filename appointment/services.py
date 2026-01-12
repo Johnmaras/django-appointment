@@ -405,12 +405,9 @@ def get_available_slots(date, appointments, staff_member):
     buffer_time = now + buff_time if date == now.date() else now
     slots = calculate_slots(start_time, end_time, buffer_time, slot_duration)
     slots, full_slots = exclude_full_sessions(date, slots, staff_member)
-    all_slots = slots + full_slots
-    all_slots = exclude_booked_slots(appointments, all_slots, slot_duration)
+    slots = exclude_booked_slots(appointments, slots, slot_duration)
 
-    full_slots = [slot.strftime('%H:%M') for slot in full_slots]
-    formatted_slots = [slot.strftime('%H:%M') for slot in all_slots]
-    formatted_slots = list(map(lambda x: x + ' (Full)' if x in full_slots else x, formatted_slots))
+    formatted_slots = [slot.strftime('%H:%M') for slot in slots]
     return formatted_slots
 
 
@@ -424,13 +421,13 @@ def get_available_slots_for_staff(date, staff_member, client, service):
     # Check if the provided date is a day off for the staff member
     days_off_exist = check_day_off_for_staff(staff_member=staff_member, date=date)
     if days_off_exist:
-        return []
+        return [], []
 
     # Check if the staff member works on the provided date
     day_of_week = get_weekday_num_from_date(date)  # Python's weekday starts from Monday (0) to Sunday (6)
     working_hours_dict = get_working_hours_for_staff_and_day(staff_member, day_of_week)
     if not working_hours_dict:
-        return []
+        return [], []
 
     slot_duration = datetime.timedelta(minutes=staff_member.get_slot_duration())
     slots = calculate_staff_slots(date, staff_member, service)
@@ -439,13 +436,11 @@ def get_available_slots_for_staff(date, staff_member, client, service):
     appointments = get_appointments_for_date_and_time(date, working_hours_dict['start_time'],
                                                       working_hours_dict['end_time'], staff_member,
                                                       client)
-    all_slots = slots + full_slots
-    all_slots = exclude_booked_slots(appointments, all_slots, slot_duration)
+    avail_slots = exclude_booked_slots(appointments, slots, slot_duration)
 
-    full_slots = [slot.strftime('%H:%M') for slot in full_slots]
-    formatted_slots = [slot.strftime('%H:%M') for slot in all_slots]
-    formatted_slots = list(map(lambda x: x + ' (Full)' if x in full_slots else x, formatted_slots))
-    return formatted_slots
+    formatted_full_slots = [slot.strftime('%H:%M') for slot in full_slots]
+    formatted_slots = [slot.strftime('%H:%M') for slot in avail_slots]
+    return formatted_slots, formatted_full_slots
 
 
 def get_available_slots_for_staff_members(date, staff_members, client, service):
@@ -486,7 +481,6 @@ def get_available_slots_for_staff_members(date, staff_members, client, service):
         all_appointments.extend(appointments)
 
     all_slots = set(all_slots)
-    all_slots.update(all_full_slots)
     all_slots = list(all_slots)
     all_slots.sort()
 
@@ -494,9 +488,7 @@ def get_available_slots_for_staff_members(date, staff_members, client, service):
         slot_duration = datetime.timedelta(minutes=staff_member.get_slot_duration())
         all_slots = exclude_booked_slots(all_appointments, all_slots, slot_duration)
 
-    all_full_slots = [slot.strftime('%H:%M') for slot in all_full_slots]
     formatted_slots = [slot.strftime('%H:%M') for slot in all_slots]
-    formatted_slots = list(map(lambda x: x + ' (Full)' if x in all_full_slots else x, formatted_slots))
     return formatted_slots
 
 
