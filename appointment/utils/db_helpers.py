@@ -21,7 +21,7 @@ from django_q.models import Schedule
 from django_q.tasks import schedule
 
 from appointment.logger_config import logger
-from appointment.models import Session
+from appointment.models import Session, WaitingList
 from appointment.settings import (
     APPOINTMENT_BUFFER_TIME, APPOINTMENT_FINISH_TIME, APPOINTMENT_LEAD_TIME, APPOINTMENT_PAYMENT_URL,
     APPOINTMENT_SLOT_DURATION, APPOINTMENT_WEBSITE_NAME
@@ -773,3 +773,10 @@ def add_appointment_to_session(appointment, staff_member):
     session = results[0]
     session.appointments.add(appointment)
     session.save()
+
+
+def delete_waiting_list(user, session) -> bool:
+    # TODO Advanced search: Delete waitinglists that enclose the session (currently booked) start time
+    waitinglist = WaitingList.objects.filter(user=user, session__date=session.date, session__start_time=session.start_time)
+    objects_affected, dict_of_rows = waitinglist.delete()
+    return objects_affected >= 1
