@@ -761,22 +761,24 @@ def get_absolute_url_(relative_url, request):
     return request.build_absolute_uri(relative_url)
 
 
-def add_appointment_to_session(appointment, staff_member):
+def add_appointment_to_session(appointment, staff_member) -> Session:
     """
     Add an appointment to a session.
     """
-    results = Session.objects.filter(date=appointment.get_date(), start_time=appointment.get_start_time(),
-                                     end_time=appointment.get_end_time(), staff_member=staff_member).get_or_create(
+    session, created = Session.objects.filter(date=appointment.get_date(), start_time=appointment.get_start_time(),
+                                              end_time=appointment.get_end_time(),
+                                              staff_member=staff_member).get_or_create(
         date=appointment.get_date(),
         start_time=appointment.get_start_time(),
         end_time=appointment.get_end_time(), staff_member=staff_member)
-    session = results[0]
     session.appointments.add(appointment)
     session.save()
+    return session
 
 
 def delete_waiting_list(user, session) -> bool:
     # TODO Advanced search: Delete waitinglists that enclose the session (currently booked) start time
-    waitinglist = WaitingList.objects.filter(user=user, session__date=session.date, session__start_time=session.start_time)
+    waitinglist = WaitingList.objects.filter(user=user, session__date=session.date,
+                                             session__start_time=session.start_time)
     objects_affected, dict_of_rows = waitinglist.delete()
     return objects_affected >= 1
