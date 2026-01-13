@@ -776,9 +776,8 @@ def add_appointment_to_session(appointment, staff_member) -> Session:
     return session
 
 
-def delete_waiting_list(user, session) -> bool:
+def delete_waiting_list(user, session):
     # TODO Advanced search: Delete waitinglists that enclose the session (currently booked) start time
     waitinglist = WaitingList.objects.filter(user=user, session__date=session.date,
                                              session__start_time=session.start_time)
-    objects_affected, dict_of_rows = waitinglist.delete()
-    return objects_affected >= 1
+    waitinglist.delete()
