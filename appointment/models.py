@@ -655,7 +655,8 @@ class Appointment(models.Model):
         return self.appointment_request.service.background_color
 
     def refund_credits(self):
-        self.appointment_request.membership_used.refund_credits()
+        if membership_used := self.appointment_request.membership_used:
+            membership_used.refund_credits()
 
     @staticmethod
     def is_valid_date(appt_date, start_time, staff_member, current_appointment_id, weekday: str):
