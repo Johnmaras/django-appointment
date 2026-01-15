@@ -84,8 +84,9 @@ class Client(models.Model):
                     start_date__lte=appointment_date)).order_by("end_date", "avail_credits").all()
             if not membership or not memberships.contains(membership):
                 membership = memberships.first()
-            return membership.consume_credits()
-        return False
+            membership.consume_credits()
+            return membership
+        return None
 
     def is_member(self):
         return self.membership_set.filter(is_active=True, end_date__gte=datetime.date.today()).exists()
