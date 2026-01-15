@@ -10,6 +10,7 @@ Since: 2.0.0
 import datetime
 import json
 
+from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404, redirect, render
@@ -502,7 +503,7 @@ def delete_appointment(request, appointment_id):
     if len(appt_session.appointments.all()) == 0:
         appt_session.delete()
     messages.success(request, _("Appointment deleted successfully!"))
-    return redirect(request.GET.get('next', 'appointment:get_user_appointments'))
+    return redirect(request.GET.get('next', settings.HOMEPAGE))
 
 
 @require_user_authenticated
