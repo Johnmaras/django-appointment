@@ -59,6 +59,81 @@ def generate_rgb_color():
     return f'rgb({r}, {g}, {b})'
 
 
+class Client(models.Model):
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+
+    phone = models.CharField(max_length=20)
+    address = models.CharField(max_length=200)
+    city = models.CharField(max_length=100)
+    state = models.CharField(max_length=100)
+    zip_code = models.CharField(max_length=10)
+
+    def __str__(self):
+        return str(self.user)
+
+    def can_book_appointment(self, appointment_date):
+        return self.membership_set.filter(is_active=True,
+                                          avail_credits__gt=0,
+                                          start_date__lte=appointment_date,
+                                          end_date__gte=appointment_date).exists()
+
+    def apply_appointment_request(self, appointment_date, membership=None):
+        if self.can_book_appointment(appointment_date):
+            memberships = self.membership_set.filter(
+                Q(is_active=True) & Q(avail_credits__gt=0) & Q(end_date__gte=appointment_date) & Q(
+                    start_date__lte=appointment_date)).order_by("end_date", "avail_credits").all()
+            if not membership or not memberships.contains(membership):
+                membership = memberships.first()
+            return membership.consume_credits()
+        return False
+
+    def is_member(self):
+        return self.membership_set.filter(is_active=True, end_date__gte=datetime.date.today()).exists()
+
+    def get_memberships(self, service=None):
+        if service is None:
+            return self.membership_set.filter(is_active=True).all()
+        return self.membership_set.filter(is_active=True, membership_type__valid_services__in=[service]).all()
+
+
+class Membership(models.Model):
+    avail_credits = models.IntegerField(
+        help_text="Number of sessions a client can attend until the end of the subscription")
+
+    start_date = models.DateField(help_text="When the membership started")
+    end_date = models.DateField(help_text="When the membership ends")
+
+    client = models.ForeignKey('Client', on_delete=models.CASCADE)
+
+    is_active = models.BooleanField(default=True)
+
+    membership_type = models.ForeignKey('MembershipType', on_delete=models.PROTECT)
+
+    def consume_credits(self):
+        if self.avail_credits > 0:
+            self.avail_credits -= 1
+            self.save()
+            return True
+        return False
+
+    def refund_credits(self):
+        self.avail_credits += 1
+        self.save()
+
+
+class MembershipType(models.Model):
+    name = models.CharField(max_length=100)
+    description = models.TextField(max_length=500)
+    perks = models.TextField(max_length=500)
+    price = models.PositiveSmallIntegerField()
+    currency = models.TextField(max_length=3, default="EUR")
+    credits = models.IntegerField()
+    duration = models.PositiveSmallIntegerField()
+    valid_services = models.ManyToManyField('appointment.Service',
+                                            help_text="Services that are valid for this membership")
+    is_active = models.BooleanField(default=True)
+
+
 class Service(models.Model):
     """
     Represents a service provided by the appointment system.
@@ -303,6 +378,7 @@ class AppointmentRequest(models.Model):
     payment_type = models.CharField(max_length=4, choices=PAYMENT_TYPES, default='full')
     id_request = models.CharField(max_length=100, blank=True, null=True)
     reschedule_attempts = models.PositiveIntegerField(default=0)
+    membership_used = models.ForeignKey(Membership, on_delete=models.SET_NULL, null=True)
 
     # meta data
     created_at = models.DateTimeField(auto_now_add=True)
@@ -576,6 +652,9 @@ class Appointment(models.Model):
 
     def get_background_color(self):
         return self.appointment_request.service.background_color
+
+    def refund_credits(self):
+        self.appointment_request.membership_used.refund_credits()
 
     @staticmethod
     def is_valid_date(appt_date, start_time, staff_member, current_appointment_id, weekday: str):
@@ -980,75 +1059,3 @@ class Session(models.Model):
     def cancellation_threshold_pass(self):
         session_datetime = pendulum.from_format(f"{self.date} {self.start_time}", "YYYY-MM-DD HH:mm:ss")
         return not self.has_passed() and session_datetime.diff(pendulum.now()).in_hours() < 8
-
-
-
-class Client(models.Model):
-    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-
-    phone = models.CharField(max_length=20)
-    address = models.CharField(max_length=200)
-    city = models.CharField(max_length=100)
-    state = models.CharField(max_length=100)
-    zip_code = models.CharField(max_length=10)
-
-    def __str__(self):
-        return str(self.user)
-
-    def can_book_appointment(self, appointment_date):
-        return self.membership_set.filter(is_active=True,
-                                          avail_credits__gt=0,
-                                          start_date__lte=appointment_date,
-                                          end_date__gte=appointment_date).exists()
-
-    def apply_appointment_request(self, appointment_date, membership=None):
-        if self.can_book_appointment(appointment_date):
-            memberships = self.membership_set.filter(
-                Q(is_active=True) & Q(avail_credits__gt=0) & Q(end_date__gte=appointment_date) & Q(
-                    start_date__lte=appointment_date)).order_by("end_date", "avail_credits").all()
-            if not membership or not memberships.contains(membership):
-                membership = memberships.first()
-            return membership.consume_credits()
-        return False
-
-    def is_member(self):
-        return self.membership_set.filter(is_active=True, end_date__gte=datetime.date.today()).exists()
-
-    def get_memberships(self, service=None):
-        if service is None:
-            return self.membership_set.filter(is_active=True).all()
-        return self.membership_set.filter(is_active=True, membership_type__valid_services__in=[service]).all()
-
-
-class Membership(models.Model):
-    avail_credits = models.IntegerField(
-        help_text="Number of sessions a client can attend until the end of the subscription")
-
-    start_date = models.DateField(help_text="When the membership started")
-    end_date = models.DateField(help_text="When the membership ends")
-
-    client = models.ForeignKey('Client', on_delete=models.CASCADE)
-
-    is_active = models.BooleanField(default=True)
-
-    membership_type = models.ForeignKey('MembershipType', on_delete=models.PROTECT)
-
-    def consume_credits(self):
-        if self.avail_credits > 0:
-            self.avail_credits -= 1
-            self.save()
-            return True
-        return False
-
-
-class MembershipType(models.Model):
-    name = models.CharField(max_length=100)
-    description = models.TextField(max_length=500)
-    perks = models.TextField(max_length=500)
-    price = models.PositiveSmallIntegerField()
-    currency = models.TextField(max_length=3, default="EUR")
-    credits = models.IntegerField()
-    duration = models.PositiveSmallIntegerField()
-    valid_services = models.ManyToManyField('appointment.Service',
-                                            help_text="Services that are valid for this membership")
-    is_active = models.BooleanField(default=True)

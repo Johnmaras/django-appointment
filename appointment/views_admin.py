@@ -27,9 +27,8 @@ from appointment.services import (
     fetch_user_appointments, handle_entity_management_request, handle_service_management_request,
     prepare_appointment_display_data, prepare_user_profile_data, save_appt_date_time, update_existing_appointment,
     update_personal_info_service)
-from appointment.utils.db_helpers import (
-    Service, get_day_off_by_id, get_staff_member_by_user_id, get_user_model,
-    get_working_hours_by_id)
+from appointment.utils.db_helpers import Service, get_day_off_by_id, get_staff_member_by_user_id, get_user_model, \
+    get_working_hours_by_id
 from appointment.utils.error_codes import ErrorCode
 from appointment.utils.json_context import (
     convert_appointment_to_json, get_generic_context, get_generic_context_with_extra, handle_unauthorized_response,
@@ -490,7 +489,7 @@ def get_service_list(request, response_type='html'):
     return render(request, 'administration/service_list.html', context=context)
 
 
-# TODO Add credits refund
+# DONE Add credits refund
 
 @require_user_authenticated
 def delete_appointment(request, appointment_id):
@@ -498,10 +497,18 @@ def delete_appointment(request, appointment_id):
     if not has_permission_to_delete_appointment(request.user, appointment):
         message = _("You can only delete your own appointments.")
         return handle_unauthorized_response(request, message, 'html')
+
+    refund_credits = request.POST.get("refund_credits", "off")
+
     appt_session = Session.objects.filter(appointments__in=[appointment]).first()
     appointment.delete()
     if len(appt_session.appointments.all()) == 0:
         appt_session.delete()
+
+    if refund_credits == "on":
+        appointment.refund_credits()
+        messages.success(request, _("Credits refunded!"))
+
     messages.success(request, _("Appointment deleted successfully!"))
     return redirect(request.GET.get('next', settings.HOMEPAGE))
 
@@ -510,6 +517,7 @@ def delete_appointment(request, appointment_id):
 def delete_appointment_ajax(request):
     data = json.loads(request.body)
     appointment_id = data.get("appointment_id")
+    refund_credits = data.get("refund_credits", "off")
     appointment = get_object_or_404(Appointment, pk=appointment_id)
     if not has_permission_to_delete_appointment(request.user, appointment):
         message = _("You can only delete your own appointments.")
@@ -519,7 +527,14 @@ def delete_appointment_ajax(request):
     if len(appt_session.appointments.all()) == 0:
         appt_session.delete()
 
-    return json_response(_("Appointment deleted successfully."))
+    message = _("Appointment deleted successfully. ")
+    if refund_credits == "on":
+        appointment.refund_credits()
+        message += _("Credits refunded!")
+    else:
+        message += _("No credits refunded.")
+
+    return json_response(message)
 
 
 @require_user_authenticated

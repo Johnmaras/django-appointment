@@ -21,7 +21,7 @@ from django_q.models import Schedule
 from django_q.tasks import schedule
 
 from appointment.logger_config import logger
-from appointment.models import Session, WaitingList
+from appointment.models import Session, WaitingList, MembershipType
 from appointment.settings import (
     APPOINTMENT_BUFFER_TIME, APPOINTMENT_FINISH_TIME, APPOINTMENT_LEAD_TIME, APPOINTMENT_PAYMENT_URL,
     APPOINTMENT_SLOT_DURATION, APPOINTMENT_WEBSITE_NAME
@@ -781,3 +781,7 @@ def delete_waiting_list(user, session):
     waitinglist = WaitingList.objects.filter(user=user, session__date=session.date,
                                              session__start_time=session.start_time)
     waitinglist.delete()
+
+
+def service_requires_membership(service):
+    return MembershipType.objects.filter(valid_services__in=[service]).exists()
