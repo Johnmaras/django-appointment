@@ -489,7 +489,8 @@ def get_service_list(request, response_type='html'):
     return render(request, 'administration/service_list.html', context=context)
 
 
-# DONE Add credits refund
+# DONE Add credits refund when admin calls
+# DONE Add credits refund when client calls
 
 @require_user_authenticated
 def delete_appointment(request, appointment_id):
@@ -498,9 +499,16 @@ def delete_appointment(request, appointment_id):
         message = _("You can only delete your own appointments.")
         return handle_unauthorized_response(request, message, 'html')
 
-    refund_credits = request.POST.get("refund_credits", "off")
-
     appt_session = Session.objects.filter(appointments__in=[appointment]).first()
+
+    if not (request.user.is_staff or request.user.is_superuser):
+        if not appt_session.cancellation_threshold_pass():
+            refund_credits = "on"
+        else:
+            refund_credits = "off"
+    else:
+        refund_credits = request.POST.get("refund_credits", "off")
+
     appointment.delete()
     if len(appt_session.appointments.all()) == 0:
         appt_session.delete()
@@ -517,12 +525,21 @@ def delete_appointment(request, appointment_id):
 def delete_appointment_ajax(request):
     data = json.loads(request.body)
     appointment_id = data.get("appointment_id")
-    refund_credits = data.get("refund_credits", "off")
     appointment = get_object_or_404(Appointment, pk=appointment_id)
     if not has_permission_to_delete_appointment(request.user, appointment):
         message = _("You can only delete your own appointments.")
         return json_response(message, status=403, success=False, error_code=ErrorCode.NOT_AUTHORIZED)
+
     appt_session = Session.objects.filter(appointments__in=[appointment]).first()
+
+    if not (request.user.is_staff or request.user.is_superuser):
+        if not appt_session.cancellation_threshold_pass():
+            refund_credits = "on"
+        else:
+            refund_credits = "off"
+    else:
+        refund_credits = data.get("refund_credits", "off")
+
     appointment.delete()
     if len(appt_session.appointments.all()) == 0:
         appt_session.delete()
