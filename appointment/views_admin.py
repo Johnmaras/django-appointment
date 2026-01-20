@@ -19,22 +19,24 @@ from django.views.decorators.http import require_POST
 
 from appointment.decorators import (
     require_ajax, require_staff_or_superuser, require_superuser, require_user_authenticated)
-from appointment.forms import PersonalInformationForm, ServiceForm, StaffAppointmentInformationForm
+from appointment.forms import PersonalInformationForm, ServiceForm, StaffAppointmentInformationForm, \
+    AppointmentRequestForm
 from appointment.messages_ import appt_updated_successfully
-from appointment.models import Appointment, DayOff, StaffMember, WorkingHours, Session
+from appointment.models import Appointment, DayOff, StaffMember, WorkingHours, Session, WaitingList
 from appointment.services import (
     create_new_appointment, create_staff_member_service, email_change_verification_service,
     fetch_user_appointments, handle_entity_management_request, handle_service_management_request,
     prepare_appointment_display_data, prepare_user_profile_data, save_appt_date_time, update_existing_appointment,
     update_personal_info_service)
 from appointment.utils.db_helpers import Service, get_day_off_by_id, get_staff_member_by_user_id, get_user_model, \
-    get_working_hours_by_id
+    get_working_hours_by_id, service_requires_membership, add_appointment_to_session, delete_waiting_list
 from appointment.utils.error_codes import ErrorCode
 from appointment.utils.json_context import (
     convert_appointment_to_json, get_generic_context, get_generic_context_with_extra, handle_unauthorized_response,
     json_response)
 from appointment.utils.permissions import check_extensive_permissions, check_permissions, \
     has_permission_to_delete_appointment
+from appointment.views import create_appointment
 
 
 ###############################################################
@@ -500,6 +502,11 @@ def delete_appointment(request, appointment_id):
         return handle_unauthorized_response(request, message, 'html')
 
     appt_session = Session.objects.filter(appointments__in=[appointment]).first()
+    appt_session_id = appt_session.id
+    appt_session_date = appt_session.date
+    appt_session_start_time = appt_session.start_time
+    appt_session_end_time = appt_session.end_time
+    appt_session_staff = appt_session.staff_member
 
     if not (request.user.is_staff or request.user.is_superuser):
         if not appt_session.cancellation_threshold_pass():
@@ -518,6 +525,69 @@ def delete_appointment(request, appointment_id):
         messages.success(request, _("Credits refunded!"))
 
     messages.success(request, _("Appointment deleted successfully!"))
+
+    # TODO Check if there is anyone waiting to join the session
+    if waitinglists := WaitingList.objects.filter(session_id=appt_session_id).order_by("date_joined").all():
+        for waitinglist in waitinglists:
+            awaiting_user_id = waitinglist.user_id
+            awaiting_service_id = waitinglist.service_id
+
+            awaiting_user = get_user_model().objects.get(pk=awaiting_user_id)
+            awaiting_service = Service.objects.get(pk=awaiting_service_id)
+            requires_membership = service_requires_membership(awaiting_service)
+            if requires_membership:
+                if not awaiting_user.client.can_book_appointment(appt_session_date):
+                    # TODO Inform awaiting_user that they missed a spot due to missing membership or credits
+                    # TODO Log it
+                    continue
+            break
+        else:
+            return redirect(request.GET.get('next', settings.HOMEPAGE))
+
+        ar_data = {
+            'date': appt_session_date,
+            'start_time': appt_session_start_time,
+            'end_time': appt_session_end_time,
+            'service': awaiting_service_id,
+            'staff_member': appt_session_staff
+        }
+        appointment_request_form = AppointmentRequestForm(ar_data)
+        if appointment_request_form.is_valid():
+            staff_member = appointment_request_form.cleaned_data['staff_member']
+            if not StaffMember.objects.filter(id=staff_member.id).exists():
+                # TODO Log
+                pass
+
+            client_data = {
+                'name': f"{awaiting_user.first_name} {awaiting_user.last_name}",
+                'email': awaiting_user.email,
+            }
+            appointment_data = {"phone": awaiting_user.client.phone,
+                                "want_reminder": False,
+                                "address": awaiting_user.client.address,
+                                "additional_info": None}
+
+            appointment_request = appointment_request_form.save()
+            response = create_appointment(request, appointment_request, client_data, appointment_data)
+
+            if requires_membership:
+                membership_used = awaiting_user.client.apply_appointment_request(appointment_request.date)
+                appointment_request.membership_used = membership_used
+                appointment_request.save()
+
+            appointment_obj = appointment_request.appointment
+            appt_session = add_appointment_to_session(appointment_obj, staff_member)
+            try:
+                delete_waiting_list(awaiting_user, appt_session)
+                # TODO Log
+            except Exception as e:
+                # TODO Log
+                pass
+
+        else:
+            # TODO Log the issue
+            pass
+
     return redirect(request.GET.get('next', settings.HOMEPAGE))
 
 
