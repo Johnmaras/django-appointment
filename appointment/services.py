@@ -455,7 +455,6 @@ def get_available_slots_for_staff_members(date, staff_members, client, service):
     all_slots = []
     all_appointments = []
 
-    all_full_slots = []
     for staff_member in staff_members:
         # Check if the provided date is a day off for the staff member
         days_off_exist = check_day_off_for_staff(staff_member=staff_member, date=date)
@@ -470,10 +469,8 @@ def get_available_slots_for_staff_members(date, staff_members, client, service):
 
         slots = calculate_staff_slots(date, staff_member, service)
         slots = exclude_pending_reschedules(slots, staff_member, date)
-        slots, full_slots = exclude_full_sessions(date, slots, staff_member)
 
         all_slots.extend(slots)
-        all_full_slots.extend(full_slots)
 
         appointments = get_appointments_for_date_and_time(date, working_hours_dict['start_time'],
                                                           working_hours_dict['end_time'], staff_member,
