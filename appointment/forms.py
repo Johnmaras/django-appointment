@@ -145,7 +145,7 @@ class ServiceForm(forms.ModelForm):
 
     class Meta:
         model = Service
-        fields = ['name', 'description', 'duration', 'price', 'down_payment', 'image', 'currency', 'background_color']
+        fields = ['name', 'description', 'duration', 'price', 'down_payment', 'max_capacity', 'image', 'currency', 'background_color']
         widgets = {
             'name': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -153,19 +153,23 @@ class ServiceForm(forms.ModelForm):
             }),
             'description': forms.Textarea(attrs={
                 'class': 'form-control',
-                'placeholder': "Example: Overview of client's needs."
+                'placeholder': _("Example: Overview of client's needs.")
             }),
             'duration': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'HH:MM:SS, (example: 00:15:00 for 15 minutes)'
+                'placeholder': _('HH:MM:SS, (example: 00:15:00 for 15 minutes)')
             }),
             'price': forms.NumberInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'Example: 100.00 (0 for free)'
+                'placeholder': _('Example: 100.00 (0 for free)')
             }),
             'down_payment': forms.NumberInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'Example: 50.00 (0 for free)'
+                'placeholder': _('Example: 50.00 (0 for free)')
+            }),
+            'max_capacity': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'placeholder': '3'
             }),
             'image': forms.ClearableFileInput(attrs={'class': 'form-control'}),
             'currency': forms.Select(choices=[('USD', 'USD'), ('EUR', 'EUR'), ('GBP', 'GBP')],

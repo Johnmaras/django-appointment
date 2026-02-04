@@ -381,7 +381,8 @@ def user_has_already_booked_slot(appointment):
 
 def is_session_full(date, start_time, staff_member):
     s = Session.get_specific_session(date, start_time, staff_member)
-    return s and s.appointments.count() >= settings.MAX_SESSION_CAPACITY
+    session_capacity = s.get_max_capacity() if s else 0
+    return s and s.appointments.count() >= session_capacity
 
 
 def exclude_pending_reschedules(slots, staff_member, date):

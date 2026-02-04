@@ -121,18 +121,28 @@ class Membership(models.Model):
         self.avail_credits += 1
         self.save()
 
+    def calculate_end_date(self):
+        membership_type_interval = self.membership_type.duration
+        end_date = pendulum.date(self.start_date.year, self.start_date.month, self.start_date.day).add(
+            days=membership_type_interval)
+        return end_date
+
+    def reset_credits(self):
+        self.avail_credits = self.membership_type.credits
+        self.save()
+
 
 class MembershipType(models.Model):
     name = models.CharField(max_length=100)
     description = models.TextField(max_length=500)
-    perks = models.TextField(max_length=500)
     price = models.PositiveSmallIntegerField()
-    currency = models.TextField(max_length=3, default="EUR")
+    currency = models.CharField(max_length=3, default='EUR', validators=[MaxLengthValidator(3), MinLengthValidator(3)])
     credits = models.IntegerField()
-    duration = models.PositiveSmallIntegerField()
+    duration = models.PositiveSmallIntegerField(help_text="Duration in days")
     valid_services = models.ManyToManyField('appointment.Service',
                                             help_text="Services that are valid for this membership")
     is_active = models.BooleanField(default=True)
+    assign_when_registered = models.BooleanField(default=False)
 
 
 class Service(models.Model):
@@ -146,10 +156,11 @@ class Service(models.Model):
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True, null=True)
     duration = models.DurationField()
+    max_capacity = models.PositiveIntegerField(default=3, validators=[MinValueValidator(1)])
     price = models.DecimalField(max_digits=6, decimal_places=2, validators=[MinValueValidator(0)])
     down_payment = models.DecimalField(max_digits=6, decimal_places=2, default=0, validators=[MinValueValidator(0)])
     image = models.ImageField(upload_to='services/', blank=True, null=True)
-    currency = models.CharField(max_length=3, default='USD', validators=[MaxLengthValidator(3), MinLengthValidator(3)])
+    currency = models.CharField(max_length=3, default='EUR', validators=[MaxLengthValidator(3), MinLengthValidator(3)])
     background_color = models.CharField(max_length=50, null=True, blank=True, default="")
     reschedule_limit = models.PositiveIntegerField(
         default=0,
@@ -1038,6 +1049,9 @@ class Session(models.Model):
     end_time = models.TimeField()
 
     staff_member = models.ForeignKey(StaffMember, on_delete=models.CASCADE)
+
+    def get_max_capacity(self):
+        return self.appointments.first().appointment_request.service.max_capacity
 
     @staticmethod
     def get_specific_session(date, start_time, staff_member):
