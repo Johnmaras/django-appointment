@@ -536,7 +536,7 @@ def delete_appointment(request, appointment_id):
             awaiting_service = Service.objects.get(pk=awaiting_service_id)
             requires_membership = service_requires_membership(awaiting_service)
             if requires_membership:
-                if not awaiting_user.client.can_book_appointment(appt_session_date):
+                if not awaiting_user.client.can_book_appointment(appt_session_date, service=awaiting_service):
                     # TODO Inform awaiting_user that they missed a spot due to missing membership or credits
                     # TODO Log it
                     continue
@@ -571,7 +571,7 @@ def delete_appointment(request, appointment_id):
             response = create_appointment(request, appointment_request, client_data, appointment_data)
 
             if requires_membership:
-                membership_used = awaiting_user.client.apply_appointment_request(appointment_request.date)
+                membership_used = awaiting_user.client.apply_appointment_request(appointment_request.date, service=awaiting_service)
                 appointment_request.membership_used = membership_used
                 appointment_request.save()
 

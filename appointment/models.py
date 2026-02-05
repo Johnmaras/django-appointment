@@ -71,17 +71,24 @@ class Client(models.Model):
     def __str__(self):
         return str(self.user)
 
-    def can_book_appointment(self, appointment_date):
-        return self.membership_set.filter(is_active=True,
-                                          avail_credits__gt=0,
-                                          start_date__lte=appointment_date,
-                                          end_date__gte=appointment_date).exists()
+    def can_book_appointment(self, appointment_date, service=None):
+        base_filter = self.membership_set.filter(
+            is_active=True,
+            avail_credits__gt=0,
+            start_date__lte=appointment_date,
+            end_date__gte=appointment_date
+        )
+        if service:
+            base_filter = base_filter.filter(membership_type__valid_services__in=[service])
+        return base_filter.exists()
 
-    def apply_appointment_request(self, appointment_date, membership=None):
-        if self.can_book_appointment(appointment_date):
-            memberships = self.membership_set.filter(
-                Q(is_active=True) & Q(avail_credits__gt=0) & Q(end_date__gte=appointment_date) & Q(
-                    start_date__lte=appointment_date)).order_by("end_date", "avail_credits").all()
+    def apply_appointment_request(self, appointment_date, membership=None, service=None):
+        if self.can_book_appointment(appointment_date, service):
+            base_filter = Q(is_active=True) & Q(avail_credits__gt=0) & Q(end_date__gte=appointment_date) & Q(
+                start_date__lte=appointment_date)
+            if service:
+                base_filter &= Q(membership_type__valid_services__in=[service])
+            memberships = self.membership_set.filter(base_filter).order_by("end_date", "avail_credits").all()
             if not membership or not memberships.contains(membership):
                 membership = memberships.first()
             membership.consume_credits()
