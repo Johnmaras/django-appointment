@@ -778,6 +778,10 @@ def add_appointment_to_session(appointment, staff_member) -> Session:
 
 
 def delete_waiting_list(user, session):
+    """Delete waiting list entries for overlapping sessions.
+
+    Returns the number of deleted entries.
+    """
     # Delete waiting list entries for the exact session
     # Also delete entries for sessions that overlap with the booked session's time range
     # (user can't attend overlapping sessions)
@@ -788,7 +792,8 @@ def delete_waiting_list(user, session):
         session__start_time__lt=session.end_time,
         session__end_time__gt=session.start_time
     )
-    waitinglist.delete()
+    deleted_count, _ = waitinglist.delete()
+    return deleted_count
 
 
 def service_requires_membership(service):
