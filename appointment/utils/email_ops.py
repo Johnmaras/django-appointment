@@ -57,13 +57,13 @@ def send_thank_you_email(ar: AppointmentRequest, user, request, email: str, appo
     # Month and year like "J A N 2 0 2 1"
     month_year = ar.date.strftime("%b %Y").upper()
     day = ar.date.strftime("%d")
-    token = PasswordResetToken.create_token(user=user, expiration_minutes=2880)  # 2 days expiration
-    ui_db64 = urlsafe_base64_encode(force_bytes(user.pk))
-    relative_set_passwd_link = reverse('appointment:set_passwd', args=[ui_db64, token.token])
-    set_passwd_link = get_absolute_url_(relative_set_passwd_link, request=request)
+    # token = PasswordResetToken.create_token(user=user, expiration_minutes=2880)  # 2 days expiration
+    # ui_db64 = urlsafe_base64_encode(force_bytes(user.pk))
+    # relative_set_passwd_link = reverse('appointment:set_passwd', args=[ui_db64, token.token])
+    # set_passwd_link = get_absolute_url_(relative_set_passwd_link, request=request)
 
-    relative_reschedule_url = reverse('appointment:prepare_reschedule_appointment', args=[ar.get_id_request()])
-    reschedule_link = get_absolute_url_(relative_reschedule_url, request)
+    # relative_reschedule_url = reverse('appointment:prepare_reschedule_appointment', args=[ar.get_id_request()])
+    # reschedule_link = get_absolute_url_(relative_reschedule_url, request)
 
     message = _("To enhance your experience, we have created a personalized account for you. It will allow "
                 "you to manage your appointments, view service details, and make any necessary adjustments with ease.")
@@ -78,9 +78,9 @@ def send_thank_you_email(ar: AppointmentRequest, user, request, email: str, appo
         'message_2': message if account_details is not None else None,
         'month_year': month_year,
         'day': day,
-        'activation_link': set_passwd_link,
+        # 'activation_link': set_passwd_link,
         'main_title': _("Appointment successfully scheduled"),
-        'reschedule_link': reschedule_link,
+        # 'reschedule_link': reschedule_link,
     }
     send_email(
         recipient_list=[email], subject=_("Thank you for booking us."),

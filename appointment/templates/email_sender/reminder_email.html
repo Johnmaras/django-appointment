@@ -81,13 +81,7 @@
         <p><strong>{% translate 'Time' %}:</strong> {{ appointment.appointment_request.start_time }}
             - {{ appointment.appointment_request.end_time }}</p>
         <p><strong>{% translate 'Location' %}:</strong> {{ appointment.address }}</p>
-        {% if recipient_type == 'client' %}
-            <p>{% translate 'If you need to reschedule, please click the button below or contact us for further assistance.' %}</p>
-            <a href="{{ reschedule_link }}" class="button">{% translate 'Reschedule Appointment' %}</a>
             <p>{% translate 'Thank you for choosing us!' %}</p>
-        {% else %}
-            <p>{% translate 'Please ensure the appointment setup is complete and ready for the client.' %}</p>
-        {% endif %}
     </div>
     <div class="email-footer">
         {% translate 'This is an automated message. Please do not reply directly to this email.' %}

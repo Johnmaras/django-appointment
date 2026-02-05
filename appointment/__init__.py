@@ -5,5 +5,5 @@ __description__ = "Managing appointment scheduling with customizable slots, staf
 __package_name__ = "django-appointment-breformed"
 __url__ = "https://github.com/Johnmaras/django-appointment"
 __package_website__ = "https://giannismitromaras.pkgs.visualstudio.com/MyProject/_packaging/breformed/pypi/upload/"
-__version__ = "3.3.5.49"
+__version__ = "3.3.5.50"
 __test_version__ = False
