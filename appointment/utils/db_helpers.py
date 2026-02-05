@@ -778,9 +778,16 @@ def add_appointment_to_session(appointment, staff_member) -> Session:
 
 
 def delete_waiting_list(user, session):
-    # TODO Advanced search: Delete waitinglists that enclose the session (currently booked) start time
-    waitinglist = WaitingList.objects.filter(user=user, session__date=session.date,
-                                             session__start_time=session.start_time)
+    # Delete waiting list entries for the exact session
+    # Also delete entries for sessions that overlap with the booked session's time range
+    # (user can't attend overlapping sessions)
+    # Overlap condition: wl_session.start_time < session.end_time AND wl_session.end_time > session.start_time
+    waitinglist = WaitingList.objects.filter(
+        user=user,
+        session__date=session.date,
+        session__start_time__lt=session.end_time,
+        session__end_time__gt=session.start_time
+    )
     waitinglist.delete()
 
 
