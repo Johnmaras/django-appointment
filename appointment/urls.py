@@ -16,7 +16,8 @@ from appointment.views import (
 )
 from appointment.views_admin import (
     add_day_off, add_or_update_service, add_or_update_staff_info, add_working_hours, create_new_staff_member,
-    delete_appointment, delete_appointment_ajax, delete_day_off, delete_service, delete_working_hours,
+    delete_appointment, delete_appointment_ajax, delete_day_off, delete_service, delete_waiting_list_entry,
+    delete_working_hours,
     display_appointment, email_change_verification_code, fetch_service_list_for_staff, get_service_list,
     get_user_appointments, is_user_staff_admin, make_superuser_staff_member, remove_staff_member,
     remove_superuser_staff_member, update_appt_date_time, update_appt_min_info, update_day_off, update_personal_info,
@@ -80,6 +81,9 @@ admin_urlpatterns = [
 
     # delete appointment
     path('delete-appointment/<int:appointment_id>/', delete_appointment, name='delete_appointment'),
+
+    # delete waiting list entry
+    path('delete-waiting-list/<int:waiting_list_id>/', delete_waiting_list_entry, name='delete_waiting_list_entry'),
 ]
 
 ajax_urlpatterns = [

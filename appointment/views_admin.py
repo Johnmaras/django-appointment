@@ -491,9 +491,6 @@ def get_service_list(request, response_type='html'):
     return render(request, 'administration/service_list.html', context=context)
 
 
-# DONE Add credits refund when admin calls
-# DONE Add credits refund when client calls
-
 @require_user_authenticated
 def delete_appointment(request, appointment_id):
     appointment = get_object_or_404(Appointment, pk=appointment_id)
@@ -571,7 +568,8 @@ def delete_appointment(request, appointment_id):
             response = create_appointment(request, appointment_request, client_data, appointment_data)
 
             if requires_membership:
-                membership_used = awaiting_user.client.apply_appointment_request(appointment_request.date, service=awaiting_service)
+                membership_used = awaiting_user.client.apply_appointment_request(appointment_request.date,
+                                                                                 service=awaiting_service)
                 appointment_request.membership_used = membership_used
                 appointment_request.save()
 
@@ -588,6 +586,17 @@ def delete_appointment(request, appointment_id):
             # TODO Log the issue
             pass
 
+    return redirect(request.GET.get('next', settings.HOMEPAGE))
+
+
+@require_user_authenticated
+def delete_waiting_list_entry(request, waiting_list_id):
+    waiting_list = get_object_or_404(WaitingList, pk=waiting_list_id)
+    if not (request.user.is_staff or request.user.is_superuser or request.user == waiting_list.user):
+        message = _("You can only delete your own waiting list entries.")
+        return handle_unauthorized_response(request, message, 'html')
+    waiting_list.delete()
+    messages.success(request, _("Waiting list entry deleted successfully!"))
     return redirect(request.GET.get('next', settings.HOMEPAGE))
 
 

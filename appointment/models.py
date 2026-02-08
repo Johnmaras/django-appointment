@@ -19,7 +19,7 @@ from django.core.validators import MaxLengthValidator, MinLengthValidator, MinVa
 from django.db import models
 from django.urls import reverse
 from django.utils import timezone
-from django.utils.translation import gettext_lazy as _
+from django.utils.translation import gettext_lazy as _, ngettext_lazy
 from phonenumber_field.modelfields import PhoneNumberField
 
 from django.db.models import Q
@@ -222,15 +222,15 @@ class Service(models.Model):
         parts = []
 
         if days:
-            parts.append(f"{days} day{'s' if days > 1 else ''}")
+            parts.append(ngettext_lazy("%(count)d day", "%(count)d days", days) % {"count": days})
         if hours:
-            parts.append(f"{hours} hour{'s' if hours > 1 else ''}")
+            parts.append(ngettext_lazy("%(count)d hour", "%(count)d hours", hours) % {"count": hours})
         if minutes:
-            parts.append(f"{minutes} minute{'s' if minutes > 1 else ''}")
+            parts.append(ngettext_lazy("%(count)d minute", "%(count)d minutes", minutes) % {"count": minutes})
         if seconds:
-            parts.append(f"{seconds} second{'s' if seconds > 1 else ''}")
+            parts.append(ngettext_lazy("%(count)d second", "%(count)d seconds", seconds) % {"count": seconds})
 
-        return _(' '.join(parts))
+        return ' '.join(parts)
 
     def get_price(self):
         # Check if the decimal part is 0
