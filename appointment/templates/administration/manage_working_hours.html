@@ -68,6 +68,13 @@
                         </div>
                     </div>
 
+                    {% if working_hours_form.services %}
+                    <div class="form-group">
+                        <label for="{{ working_hours_form.services.id_for_label }}">{% trans 'Services' %}:</label>
+                        {{ working_hours_form.services }}
+                    </div>
+                    {% endif %}
+
                     <button type="submit" class="btn btn-primary">{{ button_text }}</button>
                     <input type="hidden" id="addWorkingHoursUrl"
                            value="{% url 'appointment:add_working_hours_id' staff_user_id|default:user.id %}">

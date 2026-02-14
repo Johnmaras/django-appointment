@@ -274,18 +274,6 @@ class Service(models.Model):
 class StaffMember(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     services_offered = models.ManyToManyField(Service)
-    slot_duration = models.PositiveIntegerField(
-        null=True, blank=True,
-        help_text=_("Minimum time for an appointment in minutes, recommended 30.")
-    )
-    lead_time = models.TimeField(
-        null=True, blank=True,
-        help_text=_("Time when the staff member starts working.")
-    )
-    finish_time = models.TimeField(
-        null=True, blank=True,
-        help_text=_("Time when the staff member stops working.")
-    )
     appointment_buffer_time = models.FloatField(
         blank=True, null=True,
         help_text=_("Time between now and the first available slot for the current day (doesn't affect tomorrow). "
@@ -293,8 +281,6 @@ class StaffMember(models.Model):
                     "minutes, the first available slot will be at 9:00 AM. If you set the appointment buffer time to "
                     "60 minutes, the first available slot will be at 9:30 AM.")
     )
-    work_on_saturday = models.BooleanField(default=False)
-    work_on_sunday = models.BooleanField(default=False)
 
     # meta data
     created_at = models.DateTimeField(auto_now_add=True)
@@ -302,25 +288,6 @@ class StaffMember(models.Model):
 
     def __str__(self):
         return f"{self.get_staff_member_name()}"
-
-    def get_slot_duration(self):
-        config = Config.objects.first()
-        return self.slot_duration or (config.slot_duration if config else 0)
-
-    def get_slot_duration_text(self):
-        slot_duration = self.get_slot_duration()
-        return convert_minutes_in_human_readable_format(slot_duration)
-
-    def get_lead_time(self):
-        config = Config.objects.first()
-        return self.lead_time or (config.lead_time if config else None)
-
-    def get_finish_time(self):
-        config = Config.objects.first()
-        return self.finish_time or (config.finish_time if config else None)
-
-    def works_on_both_weekends_day(self):
-        return self.work_on_saturday and self.work_on_sunday
 
     def get_staff_member_name(self):
         if hasattr(self.user, 'get_full_name') and callable(getattr(self.user, 'get_full_name')):
@@ -331,25 +298,6 @@ class StaffMember(models.Model):
 
     def get_staff_member_first_name(self):
         return self.user.first_name
-
-    def get_non_working_days(self):
-        non_working_days = []
-
-        if not self.work_on_saturday:
-            non_working_days.append(6)  # Saturday
-        if not self.work_on_sunday:
-            non_working_days.append(0)  # Sunday
-        return non_working_days
-
-    def get_weekend_days_worked_text(self):
-        if self.work_on_saturday and self.work_on_sunday:
-            return _("Saturday and Sunday")
-        elif self.work_on_saturday:
-            return _("Saturday")
-        elif self.work_on_sunday:
-            return _("Sunday")
-        else:
-            return _("None")
 
     def get_services_offered(self):
         return self.services_offered.all()
@@ -370,16 +318,6 @@ class StaffMember(models.Model):
 
     def get_working_hours(self):
         return self.workinghours_set.all()
-
-    def update_upon_working_hours_deletion(self, day_of_week: int):
-        if day_of_week == 6:
-            self.work_on_saturday = False
-        elif day_of_week == 0:
-            self.work_on_sunday = False
-        self.save()
-
-    def is_working_day(self, day: int):
-        return day not in self.get_non_working_days()
 
 
 class AppointmentRequest(models.Model):
@@ -741,18 +679,6 @@ class Config(models.Model):
     Version: 1.1.0
     Since: 1.1.0
     """
-    slot_duration = models.PositiveIntegerField(
-        null=True,
-        help_text=_("Minimum time for an appointment in minutes, recommended 30."),
-    )
-    lead_time = models.TimeField(
-        null=True,
-        help_text=_("Time when we start working."),
-    )
-    finish_time = models.TimeField(
-        null=True,
-        help_text=_("Time when we stop working."),
-    )
     appointment_buffer_time = models.FloatField(
         null=True,
         help_text=_("Time between now and the first available slot for the current day (doesn't affect tomorrow)."),
@@ -783,9 +709,6 @@ class Config(models.Model):
     def clean(self):
         if Config.objects.exists() and not self.pk:
             raise ValidationError(_("You can only create one Config object"))
-        if self.lead_time is not None and self.finish_time is not None:
-            if self.lead_time >= self.finish_time:
-                raise ValidationError(_("Lead time must be before finish time"))
 
     def save(self, *args, **kwargs):
         self.clean()
@@ -801,8 +724,7 @@ class Config(models.Model):
         return obj
 
     def __str__(self):
-        return f"Config {self.pk}: slot_duration={self.slot_duration}, lead_time={self.lead_time}, " \
-               f"finish_time={self.finish_time}"
+        return f"Config {self.pk}: appointment_buffer_time={self.appointment_buffer_time}"
 
 
 class PaymentInfo(models.Model):
@@ -990,6 +912,7 @@ class WorkingHours(models.Model):
                     "e.g: If an appointment ends at 10:00 AM and the buffer time is 15 minutes, "
                     "the next appointment can start at 10:15 AM.")
     )
+    services = models.ManyToManyField(Service, blank=True)
 
     # meta data
     created_at = models.DateTimeField(auto_now_add=True)
@@ -998,24 +921,9 @@ class WorkingHours(models.Model):
     def __str__(self):
         return f"{self.get_day_of_week_display()} - {self.start_time} to {self.end_time}"
 
-    def save(self, *args, **kwargs):
-        # Call the original save method
-        super(WorkingHours, self).save(*args, **kwargs)
-
-        # Update staff member's weekend working status
-        if self.day_of_week == '6' or self.day_of_week == 6:  # Saturday
-            self.staff_member.work_on_saturday = True
-        elif self.day_of_week == '0' or self.day_of_week == 0:  # Sunday
-            self.staff_member.work_on_sunday = True
-        self.staff_member.save()
-
     def clean(self):
         if self.start_time >= self.end_time:
             raise ValidationError("Start time must be before end time")
-        if self.start_time < self.staff_member.get_lead_time():
-            raise ValidationError(_("Start time cannot be before staff member's lead time."))
-        if self.end_time > self.staff_member.get_finish_time():
-            raise ValidationError(_("End time cannot be after staff member's finish time."))
 
     def get_start_time(self):
         return self.start_time

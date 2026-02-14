@@ -44,7 +44,7 @@ class EmailVerificationCodeAdmin(admin.ModelAdmin):
 @admin.register(Config)
 class ConfigAdmin(admin.ModelAdmin):
     list_display = (
-        'slot_duration', 'lead_time', 'finish_time', 'appointment_buffer_time', 'website_name', 'app_offered_by_label')
+        'appointment_buffer_time', 'website_name', 'app_offered_by_label')
 
 
 # Define a custom ModelForm for StaffMember
@@ -60,10 +60,8 @@ class StaffMemberForm(forms.ModelForm):
 @admin.register(StaffMember)
 class StaffMemberAdmin(admin.ModelAdmin):
     form = StaffMemberForm
-    list_display = (
-        'get_staff_member_name', 'get_slot_duration', 'lead_time', 'finish_time', 'work_on_saturday', 'work_on_sunday')
+    list_display = ('get_staff_member_name',)
     search_fields = ('user__email', 'user__first_name', 'user__last_name')
-    list_filter = ('work_on_saturday', 'work_on_sunday', 'lead_time', 'finish_time')
 
 
 @admin.register(DayOff)

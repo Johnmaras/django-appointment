@@ -54,21 +54,9 @@
                 {% if staff_member %}
                     <div class="section-content">
                         <p>
-                            <strong>{% trans 'Slot duration' %}:</strong> {{ staff_member.get_slot_duration_text }}
-                            <i class="fas fa-info-circle" data-toggle="tooltip"
-                               title="{{ slot_duration_help_text }}"></i>
-                        </p>
-                        <p><strong>{% trans 'General start time' %}:</strong> {{ staff_member.get_lead_time }}</p>
-                        <p><strong>{% trans 'General end time' %}:</strong> {{ staff_member.get_finish_time }}</p>
-                        <p>
-                            <strong>{% trans 'Weekend days you work' %}:</strong> {{ staff_member.get_weekend_days_worked_text }}
-                        </p>
-
-                        <p>
                             <strong>{% trans 'Appointment buffer time' %}:</strong> {{ staff_member.get_appointment_buffer_time_text }}
                             <i class="fas fa-info-circle" data-toggle="tooltip" title="{{ buffer_time_help_text }}"></i>
                         </p>
-
                     </div>
                     <a href="{% url 'appointment:update_staff_other_info' staff_member.user.id %}"
                        class="section-content-button modify-btn button-color-blue">

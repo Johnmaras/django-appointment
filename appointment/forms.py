@@ -92,28 +92,13 @@ class PersonalInformationForm(forms.Form):
 class StaffAppointmentInformationForm(forms.ModelForm):
     class Meta:
         model = StaffMember
-        fields = ['services_offered', 'slot_duration', 'lead_time', 'finish_time',
-                  'appointment_buffer_time', 'work_on_saturday', 'work_on_sunday']
+        fields = ['services_offered', 'appointment_buffer_time']
         widgets = {
             'service_offered': forms.Select(attrs={'class': 'form-control'}),
-            'slot_duration': forms.NumberInput(attrs={
-                'class': 'form-control',
-                'placeholder': _('Example value: 30, 60, 90, 120... (in minutes)')
-            }),
-            'lead_time': forms.TimeInput(attrs={
-                'class': 'form-control',
-                'placeholder': _('Example value: 08:00:00, 09:00:00... (24-hour format)')
-            }),
-            'finish_time': forms.TimeInput(attrs={
-                'class': 'form-control',
-                'placeholder': _('Example value: 17:00:00, 18:00:00... (24-hour format)')
-            }),
             'appointment_buffer_time': forms.NumberInput(attrs={
                 'class': 'form-control',
                 'placeholder': _('Example value: 15, 30, 45, 60... (in minutes)')
             }),
-            'work_on_saturday': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-            'work_on_sunday': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
 
 
@@ -134,7 +119,7 @@ class StaffDaysOffForm(forms.ModelForm):
 class StaffWorkingHoursForm(forms.ModelForm):
     class Meta:
         model = WorkingHours
-        fields = ['day_of_week', 'start_time', 'end_time', 'buffer_time']
+        fields = ['day_of_week', 'start_time', 'end_time', 'buffer_time', 'services']
 
 
 class ServiceForm(forms.ModelForm):
