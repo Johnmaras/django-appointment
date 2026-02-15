@@ -157,6 +157,7 @@ function fetchNonWorkingDays(staffId, callback) {
     }
     let ajaxData = {
         'staff_id': staffId,
+        'service_id': serviceId,
     };
 
     $.ajax({
@@ -230,6 +231,7 @@ function getAvailableSlots(selectedDate, staffId = null) {
     let ajaxData = {
         'selected_date': selectedDate,
         'staff_id': staffId,
+        'service_id': serviceId,
     };
     fetchNonWorkingDays(staffId, function (nonWorkingDays) {
         // Check if nonWorkingDays is an array

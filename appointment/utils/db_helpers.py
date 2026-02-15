@@ -505,12 +505,19 @@ def get_day_off_by_id(day_off_id):
         return None
 
 
-def get_non_working_days_for_staff(staff_member_id):
-    """Return the non-working days for the given staff member or an empty list if the staff member does not exist."""
+def get_non_working_days_for_staff(staff_member_id, service=None):
+    """Return the non-working days for the given staff member or an empty list if the staff member does not exist.
+
+    :param staff_member_id: The ID of the staff member.
+    :param service: Optional service to filter working hours by.
+    """
     all_days = set(range(7))  # Represents all days (0-6)
     try:
         staff_member = StaffMember.objects.get(id=staff_member_id)
-        working_days = set(WorkingHours.objects.filter(staff_member=staff_member).values_list('day_of_week', flat=True))
+        qs = WorkingHours.objects.filter(staff_member=staff_member)
+        if service:
+            qs = qs.filter(services=service)
+        working_days = set(qs.values_list('day_of_week', flat=True))
 
         # Subtracting working_days from all_days to get non-working days
         non_working_days = list(all_days - working_days)
@@ -618,26 +625,54 @@ def get_working_hours_for_staff_and_day(staff_member, day_of_week, service=None)
     :param staff_member: The staff member to get the working hours for.
     :param day_of_week: The day of the week to get the working hours for.
     :param service: Optional service to filter working hours by.
-    :return: The working hours for the given staff member and day of the week, or None.
+    :return: A dict with the earliest start_time and latest end_time across all working hours, or None.
     """
     qs = WorkingHours.objects.filter(staff_member=staff_member, day_of_week=day_of_week)
     if service:
         qs = qs.filter(services=service)
-    working_hours = qs.first()
-    if not working_hours:
+
+    working_hours_list = list(qs)
+    if not working_hours_list:
         return None
 
+    # Get the earliest start time and latest end time across all working hours for this day
+    earliest_start = min(wh.start_time for wh in working_hours_list)
+    latest_end = max(wh.end_time for wh in working_hours_list)
+
     return {
-        'staff_member': working_hours.staff_member,
-        'day_of_week': working_hours.day_of_week,
-        'start_time': working_hours.start_time,
-        'end_time': working_hours.end_time
+        'staff_member': staff_member,
+        'day_of_week': day_of_week,
+        'start_time': earliest_start,
+        'end_time': latest_end
     }
 
 
-def is_working_day(staff_member: StaffMember, day: int) -> bool:
-    """Check if the given day is a working day for the staff member."""
-    working_days = list(WorkingHours.objects.filter(staff_member=staff_member).values_list('day_of_week', flat=True))
+def is_time_within_working_hours(staff_member, day_of_week, time_to_check, service=None):
+    """Check if the given time falls within any of the staff member's working hours for the day.
+
+    :param staff_member: The staff member to check.
+    :param day_of_week: The day of the week (0-6).
+    :param time_to_check: The time to check (datetime.time object).
+    :param service: Optional service to filter working hours by.
+    :return: True if the time is within any working hours window, False otherwise.
+    """
+    qs = WorkingHours.objects.filter(staff_member=staff_member, day_of_week=day_of_week)
+    if service:
+        qs = qs.filter(services=service)
+    return any(wh.start_time <= time_to_check <= wh.end_time for wh in qs)
+
+
+def is_working_day(staff_member: StaffMember, day: int, service=None) -> bool:
+    """Check if the given day is a working day for the staff member.
+
+    :param staff_member: The staff member to check.
+    :param day: The day of the week (0-6).
+    :param service: Optional service to filter working hours by.
+    """
+    qs = WorkingHours.objects.filter(staff_member=staff_member)
+    if service:
+        qs = qs.filter(services=service)
+    working_days = list(qs.values_list('day_of_week', flat=True))
     return day in working_days
 
 

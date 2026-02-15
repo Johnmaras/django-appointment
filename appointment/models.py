@@ -615,19 +615,24 @@ class Appointment(models.Model):
             membership_used.refund_credits()
 
     @staticmethod
-    def is_valid_date(appt_date, start_time, staff_member, current_appointment_id, weekday: str):
+    def is_valid_date(appt_date, start_time, staff_member, current_appointment_id, weekday: str, service=None):
         weekday_num = get_weekday_num(weekday)
         sm_name = staff_member.get_staff_member_name()
 
-        # Check if the staff member works on the given day
-        try:
-            working_hours = WorkingHours.objects.get(staff_member=staff_member, day_of_week=weekday_num)
-        except WorkingHours.DoesNotExist:
+        # Check if the staff member works on the given day, filtered by service if provided
+        working_hours_list = WorkingHours.objects.filter(staff_member=staff_member, day_of_week=weekday_num)
+        if service:
+            working_hours_list = working_hours_list.filter(services=service)
+        if not working_hours_list.exists():
             message = _("{staff_member} does not work on this day.").format(staff_member=sm_name)
             return False, message
 
-        # Check if the start time falls within the staff member's working hours
-        if not (working_hours.start_time <= start_time.time() <= working_hours.end_time):
+        # Check if the start time falls within any of the staff member's working hours
+        time_within_working_hours = any(
+            wh.start_time <= start_time.time() <= wh.end_time
+            for wh in working_hours_list
+        )
+        if not time_within_working_hours:
             message = _("The appointment start time is outside of {staff_member}'s working hours.").format(
                 staff_member=sm_name)
             return False, message

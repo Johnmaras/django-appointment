@@ -286,13 +286,15 @@ def validate_appointment_date(request):
     start_time_obj = datetime.datetime.fromisoformat(start_time_str)
     appt_date = datetime.datetime.strptime(appt_date_str, "%Y-%m-%d").date()
 
-    # Get the staff member for the appointment
+    # Get the staff member and service for the appointment
     appt = Appointment.objects.get(id=appointment_id)
     staff_member = appt.appointment_request.staff_member
+    service = appt.appointment_request.service
 
     # Check if the appointment's date and time are valid
     weekday: str = appt_date.strftime("%A")
-    is_valid, message = Appointment.is_valid_date(appt_date, start_time_obj, staff_member, appointment_id, weekday)
+    is_valid, message = Appointment.is_valid_date(appt_date, start_time_obj, staff_member, appointment_id, weekday,
+                                                  service=service)
     if not is_valid:
         return json_response(message, status=403, success=False, error_code=ErrorCode.INVALID_DATE)
     return json_response(_("Appointment date and time are valid."))

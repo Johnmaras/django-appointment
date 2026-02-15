@@ -153,6 +153,7 @@ def get_available_slots_ajax(request):
     """
     selected_date = convert_str_to_date(request.GET.get('selected_date'))
     staff_id = request.GET.get('staff_id')
+    service_id = request.GET.get('service_id')
     user_id = request.GET.get('user_id')
 
     client = get_object_or_404(User, pk=user_id)
@@ -175,6 +176,7 @@ def get_available_slots_ajax(request):
                              error_code=ErrorCode.STAFF_ID_REQUIRED, status=403)
 
     sm = get_object_or_404(StaffMember, pk=staff_id)
+    service = get_object_or_404(Service, pk=service_id) if service_id and service_id != 'none' else None
     custom_data['staff_member'] = sm.get_staff_member_name()
     days_off_exist = check_day_off_for_staff(staff_member=sm, date=selected_date)
     if days_off_exist:
@@ -183,13 +185,13 @@ def get_available_slots_ajax(request):
         return json_response(message=message, custom_data=custom_data, success=False, error_code=ErrorCode.INVALID_DATE)
     # if selected_date is not a working day for the staff, return an empty list of slots and 'message' is Day Off
     weekday_num = get_weekday_num_from_date(selected_date)
-    is_working_day_ = is_working_day(staff_member=sm, day=weekday_num)
+    is_working_day_ = is_working_day(staff_member=sm, day=weekday_num, service=service)
     if not is_working_day_:
         message = _("Not a working day for {staff_member}. Please select another date!").format(
             staff_member=sm.get_staff_member_first_name())
         custom_data['available_slots'] = []
         return json_response(message=message, custom_data=custom_data, success=False, error_code=ErrorCode.INVALID_DATE)
-    available_slots = get_available_slots_for_staff(selected_date, sm, client)
+    available_slots, available_full_slots = get_available_slots_for_staff(selected_date, sm, client, service)
 
     # Check if the selected_date is today and filter out past slots
     if selected_date == date.today():
@@ -236,9 +238,9 @@ def get_next_available_date_ajax(request, service_id):
 
             # Check if the potential date is a day off for the staff
             is_day_off = any([day_off.start_date <= potential_date <= day_off.end_date for day_off in days_off])
-            # Check if the potential date is a working day for the staff
+            # Check if the potential date is a working day for the staff (for this service)
             weekday_num = get_weekday_num_from_date(potential_date)
-            is_working_day_ = is_working_day(staff_member=staff_member, day=weekday_num)
+            is_working_day_ = is_working_day(staff_member=staff_member, day=weekday_num, service=service)
 
             if not is_day_off and is_working_day_:
                 x, available_slots = get_appointments_and_slots(potential_date, staff_member, service)
@@ -257,6 +259,7 @@ def get_next_available_date_ajax(request, service_id):
 
 def get_non_working_days_ajax(request):
     staff_id = request.GET.get('staff_id')
+    service_id = request.GET.get('service_id')
     error = False
     message = _('Successfully retrieved non-working days')
 
@@ -265,7 +268,10 @@ def get_non_working_days_ajax(request):
         error_code = ErrorCode.STAFF_ID_REQUIRED
         error = True
     else:
-        non_working_days = get_non_working_days_for_staff(staff_id)
+        service = None
+        if service_id and service_id != 'none':
+            service = Service.objects.filter(pk=service_id).first()
+        non_working_days = get_non_working_days_for_staff(staff_id, service=service)
         custom_data = {"non_working_days": non_working_days}
         return json_response(message=message, custom_data=custom_data, success=not error)
 
@@ -611,7 +617,7 @@ def prepare_reschedule_appointment(request, id_request):
     staff_filter_criteria = {'id': ar.staff_member.id} if not staff_change_allowed_on_reschedule() else {
         'services_offered': ar.service}
     all_staff_members = StaffMember.objects.filter(**staff_filter_criteria)
-    available_slots = get_available_slots_for_staff(ar.date, selected_sm, client_obj)
+    available_slots = get_available_slots_for_staff(ar.date, selected_sm, client_obj, service)
     page_title = _("Rescheduling appointment for {s}").format(s=service.name)
     page_description = _("Reschedule your appointment for {s} at {wn}.").format(s=service.name, wn=get_website_name())
     date_chosen = ar.date.strftime("%a, %B %d, %Y")
