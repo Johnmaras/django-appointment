@@ -1,0 +1,85 @@
+{% load i18n %}
+<!DOCTYPE html>
+<html lang="el">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% translate 'Appointment Cancellation Notification' %}</title>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+            padding: 20px;
+            margin: 0;
+        }
+
+        .email-container {
+            background-color: #ffffff;
+            padding: 25px;
+            margin: 0 auto;
+            max-width: 650px;
+            border-radius: 5px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        h1 {
+            color: #333;
+            font-size: 24px;
+        }
+
+        p {
+            font-size: 16px;
+            line-height: 1.6;
+        }
+
+        .appointment-details {
+            background-color: #f9f9f9;
+            padding: 15px;
+            margin-top: 20px;
+            border-left: 5px solid #ef4444;
+        }
+
+        .membership-details {
+            background-color: #f9f9f9;
+            padding: 15px;
+            margin-top: 15px;
+            border-left: 5px solid #007bff;
+        }
+
+        .footer {
+            margin-top: 30px;
+            font-size: 14px;
+            text-align: left;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+<div class="email-container">
+    <h1>{% translate 'Appointment Cancellation' %}</h1>
+    <p>{% translate 'Dear Admin,' %}</p>
+    <p>{% translate 'A client has cancelled an appointment. Here are the details:' %}</p>
+
+    <div class="appointment-details">
+        <p><strong>{% translate 'Client' %}:</strong> {{ client_name }}</p>
+        <p><strong>{% translate 'Service' %}:</strong> {{ service_name }}</p>
+        <p><strong>{% translate 'Date' %}:</strong> {{ appointment_date }}</p>
+        <p><strong>{% translate 'Time' %}:</strong> {{ start_time }} - {{ end_time }}</p>
+        <p><strong>{% translate 'Credits refunded' %}:</strong> {{ credits_refunded }}</p>
+    </div>
+
+    {% if membership %}
+    <div class="membership-details">
+        <p><strong>{% translate 'Membership used' %}:</strong> {{ membership.membership_type.name }}</p>
+        <p><strong>{% translate 'Available credits' %}:</strong> {{ membership.avail_credits }}</p>
+        <p><strong>{% translate 'End date' %}:</strong> {{ membership.end_date }}</p>
+    </div>
+    {% endif %}
+
+    <div class="footer">
+        <p>{% translate 'This is an automated message. Please do not reply directly to this email.' %}</p>
+    </div>
+</div>
+</body>
+</html>
