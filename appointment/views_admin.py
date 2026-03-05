@@ -507,13 +507,20 @@ def delete_appointment(request, appointment_id):
     appt_session_end_time = appt_session.end_time
     appt_session_staff = appt_session.staff_member
 
-    if not (request.user.is_staff or request.user.is_superuser):
+    is_client_cancellation = not (request.user.is_staff or request.user.is_superuser)
+
+    if is_client_cancellation:
         if not appt_session.cancellation_threshold_pass():
             refund_credits = "on"
         else:
             refund_credits = "off"
     else:
         refund_credits = request.POST.get("refund_credits", "off")
+
+    # Capture data before deletion for the cancellation email
+    if is_client_cancellation:
+        cancellation_membership = appointment.appointment_request.membership_used
+        cancellation_service_name = appointment.appointment_request.service.name
 
     appointment.delete()
     if len(appt_session.appointments.all()) == 0:
@@ -524,6 +531,22 @@ def delete_appointment(request, appointment_id):
         messages.success(request, _("Credits refunded!"))
 
     messages.success(request, _("Appointment deleted successfully!"))
+
+    # Notify admin about client cancellation
+    if is_client_cancellation:
+        try:
+            from appointment.utils.email_ops import notify_admin_about_cancellation
+            notify_admin_about_cancellation(
+                client_name=f"{appointment.client.first_name} {appointment.client.last_name}",
+                service_name=cancellation_service_name,
+                session_date=appt_session_date,
+                start_time=appt_session_start_time,
+                end_time=appt_session_end_time,
+                credits_refunded=refund_credits == "on",
+                membership=cancellation_membership,
+            )
+        except Exception:
+            pass
 
     # TODO Check if there is anyone waiting to join the session
     if waitinglists := WaitingList.objects.filter(session_id=appt_session_id).order_by("date_joined").all():

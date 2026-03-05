@@ -146,6 +146,26 @@ def send_reschedule_confirmation_email(request, reschedule_history, appointment_
     )
 
 
+def notify_admin_about_cancellation(client_name, service_name, session_date, start_time, end_time,
+                                     credits_refunded, membership=None):
+    """Notify the admin when a client cancels an appointment."""
+    email_context = {
+        'client_name': client_name,
+        'service_name': service_name,
+        'appointment_date': session_date,
+        'start_time': start_time,
+        'end_time': end_time,
+        'credits_refunded': _("Yes") if credits_refunded else _("No"),
+        'membership': membership,
+    }
+    subject = _("Appointment Cancellation — {client}").format(client=client_name)
+    notify_admin(
+        subject=subject,
+        template_url='email_sender/cancellation_admin_email.html',
+        context=email_context,
+    )
+
+
 def notify_admin_about_reschedule(reschedule_history, appointment_request, client_name: str):
     """Notify the admin and the staff member about a rescheduled appointment request."""
     # Assuming you have a way to fetch these additional details
