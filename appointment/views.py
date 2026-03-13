@@ -130,15 +130,18 @@ def get_available_slots_of_staff_members_ajax(request):
     service = get_object_or_404(Service, pk=service_id)
     staff_members_of_service = StaffMember.objects.filter(services_offered=service)
 
-    available_slots = get_available_slots_for_staff_members(selected_date, staff_members_of_service, client, service)
+    available_slots, slot_occupancy = get_available_slots_for_staff_members(selected_date, staff_members_of_service, client, service)
 
     # Check if the selected_date is today and filter out past slots
     if selected_date == date.today():
         # Get the current time in EDT timezone
         current_time_edt = datetime.now(pytz.timezone(APP_TIME_ZONE)).time()
         available_slots = [slot for slot in available_slots if convert_str_to_time(slot) > current_time_edt]
+        # Remove past slots from occupancy data too
+        slot_occupancy = {slot: occ for slot, occ in slot_occupancy.items() if slot in available_slots}
 
     custom_data['available_slots'] = list(available_slots)
+    custom_data['slot_occupancy'] = slot_occupancy
     message = _('No available slots for this date') if len(available_slots) == 0 else _(
         'Successfully retrieved available slots')
     return json_response(message=message, custom_data=custom_data, success=True)

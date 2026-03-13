@@ -34,6 +34,7 @@ from appointment.utils.json_context import convert_appointment_to_json, get_gene
 from appointment.utils.permissions import check_entity_ownership
 from appointment.utils.session import handle_email_change
 from appointment.utils.db_helpers import exclude_full_sessions
+from appointment.models import Session
 
 
 def fetch_user_appointments(user):
@@ -470,6 +471,7 @@ def get_available_slots_for_staff_members(date, staff_members, client, service):
 
     all_slots = []
     all_appointments = []
+    slot_staff_map = {}  # {datetime_slot: [staff_member, ...]}
 
     for staff_member in staff_members:
         # Check if the provided date is a day off for the staff member
@@ -486,6 +488,9 @@ def get_available_slots_for_staff_members(date, staff_members, client, service):
         slots = calculate_staff_slots(date, staff_member, service)
         slots = exclude_pending_reschedules(slots, staff_member, date)
 
+        for slot in slots:
+            slot_staff_map.setdefault(slot, []).append(staff_member)
+
         all_slots.extend(slots)
 
         appointments = get_appointments_for_date_and_time(date, working_hours_dict['start_time'],
@@ -500,8 +505,23 @@ def get_available_slots_for_staff_members(date, staff_members, client, service):
     slot_duration = service.duration
     all_slots = exclude_booked_slots(all_appointments, all_slots, slot_duration)
 
+    # Build occupancy data for each available slot
+    slot_occupancy = {}
+    for slot in all_slots:
+        total_booked = 0
+        staff_for_slot = slot_staff_map.get(slot, [])
+        total_capacity = len(staff_for_slot) * service.max_capacity
+        for sm in staff_for_slot:
+            session = Session.get_specific_session(date, slot, sm)
+            if session:
+                total_booked += session.appointments.count()
+        slot_occupancy[slot.strftime('%H:%M')] = {
+            'booked': total_booked,
+            'total': total_capacity,
+        }
+
     formatted_slots = [slot.strftime('%H:%M') for slot in all_slots]
-    return formatted_slots
+    return formatted_slots, slot_occupancy
 
 
 def get_finish_button_text(service) -> str:
