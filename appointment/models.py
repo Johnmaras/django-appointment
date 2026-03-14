@@ -115,6 +115,8 @@ class Membership(models.Model):
 
     is_active = models.BooleanField(default=True)
 
+    paid = models.BooleanField(default=False)
+
     membership_type = models.ForeignKey('MembershipType', on_delete=models.PROTECT)
 
     def consume_credits(self):
