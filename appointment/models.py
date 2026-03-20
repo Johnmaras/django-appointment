@@ -991,9 +991,9 @@ class Session(models.Model):
         return WaitingList.objects.filter(session=self, user=user).exists()
 
     def has_passed(self):
-        session_datetime = pendulum.from_format(f"{self.date} {self.start_time}", "YYYY-MM-DD HH:mm:ss")
+        session_datetime = pendulum.from_format(f"{self.date} {self.start_time}", "YYYY-MM-DD HH:mm:ss", tz=settings.TIME_ZONE)
         return session_datetime.is_past()
 
     def cancellation_threshold_pass(self):
-        session_datetime = pendulum.from_format(f"{self.date} {self.start_time}", "YYYY-MM-DD HH:mm:ss")
-        return not self.has_passed() and session_datetime.diff(pendulum.now()).in_hours() < 8
+        session_datetime = pendulum.from_format(f"{self.date} {self.start_time}", "YYYY-MM-DD HH:mm:ss", tz=settings.TIME_ZONE)
+        return not self.has_passed() and session_datetime.diff(pendulum.now(tz=settings.TIME_ZONE)).in_hours() < 8
