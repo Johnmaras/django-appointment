@@ -20,7 +20,6 @@ from appointment.models import AppointmentRequest, EmailVerificationCode, Passwo
 from appointment.settings import APPOINTMENT_PAYMENT_URL
 from appointment.utils.date_time import convert_24_hour_time_to_12_hour_time
 from appointment.utils.db_helpers import get_absolute_url_, get_website_name
-from settings import APP_TIME_ZONE
 
 
 def get_thank_you_message(ar: AppointmentRequest) -> str:
@@ -72,7 +71,7 @@ def send_thank_you_email(ar: AppointmentRequest, user, request, email: str, appo
     email_context = {
         'first_name': user.first_name,
         'message_1': get_thank_you_message(ar),
-        'current_year': datetime.datetime.now(tz=APP_TIME_ZONE).year,
+        'current_year': datetime.datetime.now().year,
         'company': get_website_name(),
         'more_details': appointment_details,
         'account_details': account_details,
