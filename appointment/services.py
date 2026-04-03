@@ -503,7 +503,15 @@ def get_available_slots_for_staff_members(date, staff_members, client, service):
     all_slots.sort()
 
     slot_duration = service.duration
+    all_slots_pre_exclusion = list(all_slots)
     all_slots = exclude_booked_slots(all_appointments, all_slots, slot_duration)
+
+    # Determine which slots the client already has booked (excluded by exclude_booked_slots)
+    available_set = {slot.strftime('%H:%M') for slot in all_slots}
+    client_booked_slots = sorted(
+        slot.strftime('%H:%M') for slot in all_slots_pre_exclusion
+        if slot.strftime('%H:%M') not in available_set
+    )
 
     # Build occupancy data for each available slot
     slot_occupancy = {}
@@ -521,7 +529,7 @@ def get_available_slots_for_staff_members(date, staff_members, client, service):
         }
 
     formatted_slots = [slot.strftime('%H:%M') for slot in all_slots]
-    return formatted_slots, slot_occupancy
+    return formatted_slots, slot_occupancy, client_booked_slots
 
 
 def get_finish_button_text(service) -> str:
