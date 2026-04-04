@@ -543,21 +543,7 @@ def default_thank_you(request, appointment_id):
     :return: The rendered HTML page.
     """
     appointment = get_object_or_404(Appointment, pk=appointment_id)
-    ar = appointment.appointment_request
-    email = appointment.client.email
-    appointment_details = {
-        _('Service'): appointment.get_service_name(),
-        _('Appointment Date'): appointment.get_appointment_date(),
-        _('Appointment Time'): appointment.appointment_request.start_time,
-        _('Duration'): appointment.get_service_duration()
-    }
-    account_details = {
-        _('Email address'): email,
-    }
-    if username_in_user_model():
-        account_details[_('Username')] = appointment.client.username
-    send_thank_you_email(ar=ar, user=appointment.client, email=email, appointment_details=appointment_details,
-                         account_details=account_details, request=request)
+
     extra_context = {
         'appointment': appointment,
     }
