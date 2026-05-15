@@ -23,7 +23,7 @@ from django.utils.translation import gettext as _
 from appointment.messages_ import passwd_error
 from appointment.models import (
     Appointment, AppointmentRequest, AppointmentRescheduleHistory, Config, DayOff, EmailVerificationCode,
-    PasswordResetToken, StaffMember
+    PasswordResetToken, Session, StaffMember
 )
 from appointment.tests.base.base_test import BaseTest
 from appointment.utils.db_helpers import Service, WorkingHours, create_user_with_username
@@ -286,6 +286,110 @@ class ViewsTestCase(BaseTest):
 
         # Verify that the appointment still exists in the database
         self.assertTrue(Appointment.objects.filter(id=different_appointment.id).exists())
+
+    def _create_session_for_appointment(self, appointment):
+        """Helper: create a Session and attach the given appointment to it."""
+        appt_req = appointment.appointment_request
+        session = Session.objects.create(
+            date=appt_req.date,
+            start_time=appt_req.start_time,
+            end_time=appt_req.end_time,
+            staff_member=appt_req.staff_member,
+        )
+        session.appointments.add(appointment)
+        return session
+
+    def test_delete_appointment_ajax_client_cancellation_within_threshold(self):
+        """Client cancels within the cancellation threshold — credits should be refunded."""
+        # Log in as the appointment's client (non-staff)
+        self.client.force_login(self.client1)
+
+        appointment = self.create_appointment_for_user1()
+        self._create_session_for_appointment(appointment)
+
+        url = reverse('appointment:delete_appointment_ajax')
+        data = json.dumps({'appointment_id': appointment.id})
+
+        # cancellation_threshold_pass returns False → within threshold → refund
+        with patch('appointment.models.Session.cancellation_threshold_pass', return_value=False):
+            response = self.client.post(url, data, content_type='application/json')
+
+        self.assertEqual(response.status_code, 200)
+        appointment.refresh_from_db()
+        self.assertEqual(appointment.cancel_reason, "Canceled by client (credits refunded)")
+
+    def test_delete_appointment_ajax_client_cancellation_past_threshold(self):
+        """Client cancels past the cancellation threshold — no refund."""
+        # Log in as the appointment's client (non-staff)
+        self.client.force_login(self.client1)
+
+        appointment = self.create_appointment_for_user1()
+        self._create_session_for_appointment(appointment)
+
+        url = reverse('appointment:delete_appointment_ajax')
+        data = json.dumps({'appointment_id': appointment.id})
+
+        # cancellation_threshold_pass returns True → past threshold → no refund
+        with patch('appointment.models.Session.cancellation_threshold_pass', return_value=True):
+            response = self.client.post(url, data, content_type='application/json')
+
+        self.assertEqual(response.status_code, 200)
+        appointment.refresh_from_db()
+        self.assertEqual(appointment.cancel_reason, "Canceled by client (no refund — late cancellation)")
+
+    def test_delete_appointment_ajax_admin_cancellation_with_refund(self):
+        """Staff member cancels an appointment and requests a credit refund."""
+        self.need_staff_login()
+
+        appointment = self.create_appointment_for_user1()
+        self._create_session_for_appointment(appointment)
+
+        url = reverse('appointment:delete_appointment_ajax')
+        data = json.dumps({'appointment_id': appointment.id, 'refund_credits': 'on'})
+        response = self.client.post(url, data, content_type='application/json')
+
+        self.assertEqual(response.status_code, 200)
+        appointment.refresh_from_db()
+        self.assertEqual(appointment.cancel_reason, "Canceled by admin (credits refunded)")
+
+    def test_delete_appointment_ajax_admin_cancellation_without_refund(self):
+        """Staff member cancels an appointment without requesting a credit refund."""
+        self.need_staff_login()
+
+        appointment = self.create_appointment_for_user1()
+        self._create_session_for_appointment(appointment)
+
+        url = reverse('appointment:delete_appointment_ajax')
+        data = json.dumps({'appointment_id': appointment.id, 'refund_credits': 'off'})
+        response = self.client.post(url, data, content_type='application/json')
+
+        self.assertEqual(response.status_code, 200)
+        appointment.refresh_from_db()
+        self.assertEqual(appointment.cancel_reason, "Canceled by admin (no refund)")
+
+    def test_delete_appointment_ajax_uses_soft_delete(self):
+        """After deletion the appointment is absent from default manager but present in all_objects."""
+        self.need_staff_login()
+
+        appointment = self.create_appointment_for_user1()
+        self._create_session_for_appointment(appointment)
+        appt_id = appointment.id
+
+        url = reverse('appointment:delete_appointment_ajax')
+        data = json.dumps({'appointment_id': appt_id, 'refund_credits': 'off'})
+        response = self.client.post(url, data, content_type='application/json')
+
+        self.assertEqual(response.status_code, 200)
+
+        # Hard-deleted records would be absent from both managers; soft-deleted only from default
+        self.assertFalse(
+            Appointment.objects.filter(pk=appt_id).exists(),
+            "Appointment should not appear in the default (active) manager after soft delete.",
+        )
+        self.assertTrue(
+            Appointment.all_objects.filter(pk=appt_id).exists(),
+            "Appointment should still exist in all_objects after soft delete (not hard deleted).",
+        )
 
     def test_remove_staff_member(self):
         self.need_superuser_login()
