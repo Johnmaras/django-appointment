@@ -480,6 +480,11 @@ class AppointmentRescheduleHistory(models.Model):
         return delta.total_seconds() < 300
 
 
+class ActiveAppointmentManager(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().filter(is_deleted=False)
+
+
 class Appointment(models.Model):
     """
     Represents an appointment made by a client. It is created when the client confirms the appointment request.
@@ -488,6 +493,9 @@ class Appointment(models.Model):
     Version: 1.1.0
     Since: 1.0.0
     """
+    objects = ActiveAppointmentManager()
+    all_objects = models.Manager()
+
     client = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
     appointment_request = models.OneToOneField(AppointmentRequest, on_delete=models.CASCADE)
     phone = PhoneNumberField(blank=True)
@@ -498,6 +506,12 @@ class Appointment(models.Model):
     paid = models.BooleanField(default=False)
     amount_to_pay = models.DecimalField(max_digits=6, decimal_places=2, blank=True, null=True)
     id_request = models.CharField(max_length=100, blank=True, null=True)
+
+    # Soft delete
+    is_deleted = models.BooleanField(default=False)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+    canceled_by = models.CharField(max_length=20, null=True, blank=True)
+    cancel_reason = models.CharField(max_length=255, null=True, blank=True)
 
     # meta datas
     created_at = models.DateTimeField(auto_now_add=True)
@@ -615,6 +629,13 @@ class Appointment(models.Model):
     def refund_credits(self):
         if membership_used := self.appointment_request.membership_used:
             membership_used.refund_credits()
+
+    def soft_delete(self, canceled_by, cancel_reason=""):
+        self.is_deleted = True
+        self.deleted_at = timezone.now()
+        self.canceled_by = canceled_by
+        self.cancel_reason = cancel_reason
+        self.save(update_fields=['is_deleted', 'deleted_at', 'canceled_by', 'cancel_reason'])
 
     @staticmethod
     def is_valid_date(appt_date, start_time, staff_member, current_appointment_id, weekday: str, service=None):

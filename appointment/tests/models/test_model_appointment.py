@@ -267,3 +267,36 @@ class AppointmentValidDateTestCase(BaseTest):
                                                       self.current_appointment_id, self.weekday)
         self.assertFalse(is_valid)
         self.assertIn("has a day off on this date", message)
+
+
+class AppointmentSoftDeleteTest(BaseTest):
+    def setUp(self):
+        super().setUp()
+        self.ar = self.create_appt_request_for_sm1()
+        self.appointment = self.create_appointment_for_user1(appointment_request=self.ar)
+
+    def test_soft_delete_sets_is_deleted(self):
+        self.appointment.soft_delete(canceled_by="admin", cancel_reason="Test")
+        self.appointment.refresh_from_db()
+        self.assertTrue(self.appointment.is_deleted)
+
+    def test_soft_delete_sets_metadata(self):
+        self.appointment.soft_delete(canceled_by="client", cancel_reason="Client canceled")
+        self.appointment.refresh_from_db()
+        self.assertEqual(self.appointment.canceled_by, "client")
+        self.assertEqual(self.appointment.cancel_reason, "Client canceled")
+        self.assertIsNotNone(self.appointment.deleted_at)
+
+    def test_default_manager_excludes_soft_deleted(self):
+        appt_id = self.appointment.id
+        self.appointment.soft_delete(canceled_by="admin")
+        self.assertFalse(Appointment.objects.filter(pk=appt_id).exists())
+
+    def test_all_objects_includes_soft_deleted(self):
+        appt_id = self.appointment.id
+        self.appointment.soft_delete(canceled_by="admin")
+        self.assertTrue(Appointment.all_objects.filter(pk=appt_id).exists())
+
+    def test_new_appointments_visible_by_default_manager(self):
+        appt_id = self.appointment.id
+        self.assertTrue(Appointment.objects.filter(pk=appt_id).exists())
