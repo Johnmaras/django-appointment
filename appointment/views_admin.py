@@ -653,16 +653,30 @@ def delete_appointment_ajax(request):
 
     appt_session = Session.objects.filter(appointments__in=[appointment]).first()
 
-    if not (request.user.is_staff or request.user.is_superuser):
+    is_client_cancellation = not (request.user.is_staff or request.user.is_superuser)
+    if is_client_cancellation:
         if not appt_session.cancellation_threshold_pass():
             refund_credits = "on"
         else:
             refund_credits = "off"
+        canceled_by = "client"
+        cancel_reason = (
+            "Canceled by client (credits refunded)"
+            if refund_credits == "on"
+            else "Canceled by client (no refund — late cancellation)"
+        )
     else:
         refund_credits = data.get("refund_credits", "off")
+        canceled_by = "admin"
+        cancel_reason = (
+            "Canceled by admin (credits refunded)"
+            if refund_credits == "on"
+            else "Canceled by admin (no refund)"
+        )
 
-    appointment.delete()
-    if len(appt_session.appointments.all()) == 0:
+    appointment.soft_delete(canceled_by=canceled_by, cancel_reason=cancel_reason)
+    appt_session.appointments.remove(appointment)
+    if appt_session.appointments.count() == 0:
         appt_session.delete()
 
     message = _("Appointment deleted successfully. ")
