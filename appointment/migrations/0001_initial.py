@@ -192,8 +192,6 @@ class Migration(migrations.Migration):
                 ('paid', models.BooleanField(default=False)),
                 ('amount_to_pay', models.DecimalField(blank=True, decimal_places=2, max_digits=10, null=True)),
                 ('id_request', models.CharField(blank=True, max_length=100, null=True)),
-                ('is_deleted', models.BooleanField(default=False)),
-                ('deleted_at', models.DateTimeField(blank=True, null=True)),
                 ('created_at', models.DateTimeField(auto_now_add=True)),
                 ('updated_at', models.DateTimeField(auto_now=True)),
                 ('appointment_request', models.OneToOneField(
