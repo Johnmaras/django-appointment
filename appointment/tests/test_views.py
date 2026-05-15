@@ -317,6 +317,7 @@ class ViewsTestCase(BaseTest):
         self.assertEqual(response.status_code, 200)
         appointment.refresh_from_db()
         self.assertEqual(appointment.cancel_reason, "Canceled by client (credits refunded)")
+        self.assertEqual(appointment.canceled_by, "client")
 
     def test_delete_appointment_ajax_client_cancellation_past_threshold(self):
         """Client cancels past the cancellation threshold — no refund."""
@@ -336,6 +337,7 @@ class ViewsTestCase(BaseTest):
         self.assertEqual(response.status_code, 200)
         appointment.refresh_from_db()
         self.assertEqual(appointment.cancel_reason, "Canceled by client (no refund — late cancellation)")
+        self.assertEqual(appointment.canceled_by, "client")
 
     def test_delete_appointment_ajax_admin_cancellation_with_refund(self):
         """Staff member cancels an appointment and requests a credit refund."""
@@ -351,6 +353,7 @@ class ViewsTestCase(BaseTest):
         self.assertEqual(response.status_code, 200)
         appointment.refresh_from_db()
         self.assertEqual(appointment.cancel_reason, "Canceled by admin (credits refunded)")
+        self.assertEqual(appointment.canceled_by, "admin")
 
     def test_delete_appointment_ajax_admin_cancellation_without_refund(self):
         """Staff member cancels an appointment without requesting a credit refund."""
@@ -366,6 +369,7 @@ class ViewsTestCase(BaseTest):
         self.assertEqual(response.status_code, 200)
         appointment.refresh_from_db()
         self.assertEqual(appointment.cancel_reason, "Canceled by admin (no refund)")
+        self.assertEqual(appointment.canceled_by, "admin")
 
     def test_delete_appointment_ajax_uses_soft_delete(self):
         """After deletion the appointment is absent from default manager but present in all_objects."""
