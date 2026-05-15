@@ -422,6 +422,18 @@ class AppointmentRescheduleHistory(models.Model):
         return delta.total_seconds() < 300
 
 
+class SoftDeleteManager(models.Manager):
+    """Returns only appointments that have not been soft-deleted."""
+
+    def get_queryset(self):
+        return super().get_queryset().filter(is_deleted=False)
+
+
+class AllAppointmentsManager(models.Manager):
+    """Returns all appointments including soft-deleted ones. Use for reports and admin views."""
+    pass
+
+
 class Appointment(models.Model):
     """
     Represents an appointment made by a client. It is created when the client confirms the appointment request.
@@ -440,10 +452,15 @@ class Appointment(models.Model):
     paid = models.BooleanField(default=False)
     amount_to_pay = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
     id_request = models.CharField(max_length=100, blank=True, null=True)
+    is_deleted = models.BooleanField(default=False)
+    deleted_at = models.DateTimeField(null=True, blank=True)
 
     # meta datas
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    objects = SoftDeleteManager()
+    all_objects = AllAppointmentsManager()
 
     def __str__(self):
         return f"{self.client} - " \
@@ -592,6 +609,29 @@ class Appointment(models.Model):
             return False, message
 
         return True, ""
+
+    def delete(self, using=None, keep_parents=False):
+        """Soft-delete: marks the appointment as deleted without removing the database row.
+
+        Cancels any pending email reminder so the client doesn't receive a notification
+        for a cancelled appointment.
+        """
+        if self.want_reminder and self.id_request:
+            from appointment.utils.db_helpers import cancel_existing_reminder
+            cancel_existing_reminder(self.id_request)
+        self.is_deleted = True
+        self.deleted_at = timezone.now()
+        self.save(update_fields=['is_deleted', 'deleted_at'])
+
+    def hard_delete(self, using=None, keep_parents=False):
+        """Permanently remove this appointment from the database."""
+        super().delete(using=using, keep_parents=keep_parents)
+
+    def restore(self):
+        """Undo a soft-delete, making the appointment active again."""
+        self.is_deleted = False
+        self.deleted_at = None
+        self.save(update_fields=['is_deleted', 'deleted_at'])
 
     def is_owner(self, staff_user_id):
         return self.appointment_request.staff_member.user.id == staff_user_id

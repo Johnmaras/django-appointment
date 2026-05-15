@@ -48,7 +48,7 @@ class BaseTest(TestCase, UserMixin, StaffMemberMixin, ServiceMixin, AppointmentR
 
     @classmethod
     def clean_all_data(cls):
-        Appointment.objects.all().delete()
+        Appointment.all_objects.all().delete()
         AppointmentRequest.objects.all().delete()
         StaffMember.objects.all().delete()
         Service.objects.all().delete()

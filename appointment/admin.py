@@ -31,9 +31,23 @@ class AppointmentRequestAdmin(admin.ModelAdmin):
 
 @admin.register(Appointment)
 class AppointmentAdmin(admin.ModelAdmin):
-    list_display = ('client', 'appointment_request', 'created_at', 'updated_at',)
+    list_display = ('client', 'appointment_request', 'is_deleted', 'deleted_at', 'created_at', 'updated_at',)
     search_fields = ('appointment_request__service__name',)
-    list_filter = ('client', 'appointment_request__service',)
+    list_filter = ('client', 'appointment_request__service', 'is_deleted',)
+    actions = ['restore_appointments', 'hard_delete_appointments']
+
+    def get_queryset(self, request):
+        return Appointment.all_objects.all()
+
+    @admin.action(description='Restore selected soft-deleted appointments')
+    def restore_appointments(self, request, queryset):
+        for appt in queryset:
+            appt.restore()
+
+    @admin.action(description='Permanently delete selected appointments')
+    def hard_delete_appointments(self, request, queryset):
+        for appt in queryset:
+            appt.hard_delete()
 
 
 @admin.register(EmailVerificationCode)

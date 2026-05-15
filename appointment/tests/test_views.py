@@ -322,9 +322,13 @@ class AppointmentTestCase(BaseTest):
         messages_list = list(get_messages(response.wsgi_request))
         self.assertTrue(any(_("Appointment deleted successfully!") in str(message) for message in messages_list))
 
-        # Check if appointment is deleted
+        # Soft-deleted appointments are invisible through the default manager
         appointment_exists = Appointment.objects.filter(pk=self.appointment.id).exists()
-        self.assertFalse(appointment_exists, "Appointment should be deleted but still exists.")
+        self.assertFalse(appointment_exists, "Appointment should be soft-deleted and hidden from default queryset.")
+
+        # But the row is preserved in the database (soft delete, not hard delete)
+        soft_deleted = Appointment.all_objects.filter(pk=self.appointment.id, is_deleted=True).exists()
+        self.assertTrue(soft_deleted, "Appointment row must still exist for reporting purposes.")
 
     def test_delete_appointment_ajax(self):
         self.need_staff_login()
@@ -338,9 +342,13 @@ class AppointmentTestCase(BaseTest):
         expected_response = {"message": "Appointment deleted successfully.", "success": True}
         self.assertEqual(json.loads(response.content), expected_response)
 
-        # Check if appointment is deleted
+        # Soft-deleted appointments are invisible through the default manager
         appointment_exists = Appointment.objects.filter(pk=self.appointment.id).exists()
-        self.assertFalse(appointment_exists, "Appointment should be deleted but still exists.")
+        self.assertFalse(appointment_exists, "Appointment should be soft-deleted and hidden from default queryset.")
+
+        # But the row is preserved in the database (soft delete, not hard delete)
+        soft_deleted = Appointment.all_objects.filter(pk=self.appointment.id, is_deleted=True).exists()
+        self.assertTrue(soft_deleted, "Appointment row must still exist for reporting purposes.")
 
     def test_delete_appointment_without_permission(self):
         """Test that deleting an appointment without permission fails."""

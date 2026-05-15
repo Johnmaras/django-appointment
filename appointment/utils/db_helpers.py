@@ -430,6 +430,26 @@ def get_appointment_by_id(appointment_id):
         return None
 
 
+def get_appointment_by_id_including_deleted(appointment_id):
+    """Get an appointment by its ID, including soft-deleted ones. Use for reports.
+
+    :param appointment_id: The appointment's ID
+    :return: The appointment (active or soft-deleted) or None
+    """
+    try:
+        return Appointment.all_objects.get(id=appointment_id)
+    except Appointment.DoesNotExist:
+        return None
+
+
+def get_all_appointments_including_deleted():
+    """Return all appointments including soft-deleted ones. Use for report generation.
+
+    :return: QuerySet of all appointments regardless of deletion status
+    """
+    return Appointment.all_objects.all()
+
+
 def get_appointment_finish_time():
     """Get the appointment finish time from the settings file.
 
