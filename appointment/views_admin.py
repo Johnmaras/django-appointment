@@ -522,8 +522,25 @@ def delete_appointment(request, appointment_id):
         cancellation_membership = appointment.appointment_request.membership_used
         cancellation_service_name = appointment.appointment_request.service.name
 
-    appointment.delete()
-    if len(appt_session.appointments.all()) == 0:
+    # Build cancel metadata
+    if is_client_cancellation:
+        canceled_by = "client"
+        cancel_reason = (
+            "Canceled by client (credits refunded)"
+            if refund_credits == "on"
+            else "Canceled by client (no refund — late cancellation)"
+        )
+    else:
+        canceled_by = "admin"
+        cancel_reason = (
+            "Canceled by admin (credits refunded)"
+            if refund_credits == "on"
+            else "Canceled by admin (no refund)"
+        )
+
+    appointment.soft_delete(canceled_by=canceled_by, cancel_reason=cancel_reason)
+    appt_session.appointments.remove(appointment)
+    if appt_session.appointments.count() == 0:
         appt_session.delete()
 
     if refund_credits == "on":
