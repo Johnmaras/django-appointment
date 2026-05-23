@@ -19,7 +19,14 @@ def send_email_reminder(to_email, first_name, reschedule_link, appointment_id):
 
     # Fetch the appointment using appointment_id
     logger.info(f"Sending reminder to {to_email} for appointment {appointment_id}")
-    appointment = Appointment.objects.get(id=appointment_id)
+    try:
+        appointment = Appointment.all_objects.get(id=appointment_id)
+    except Appointment.DoesNotExist:
+        logger.warning(f"Reminder skipped: appointment {appointment_id} not found.")
+        return
+    if appointment.is_deleted:
+        logger.info(f"Reminder skipped: appointment {appointment_id} was soft-deleted.")
+        return
     recipient_type = 'client'
     email_context = {
         'first_name': first_name,

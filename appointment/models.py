@@ -631,6 +631,9 @@ class Appointment(models.Model):
             membership_used.refund_credits()
 
     def soft_delete(self, canceled_by, cancel_reason=""):
+        if self.want_reminder and self.id_request:
+            from appointment.utils.db_helpers import cancel_existing_reminder
+            cancel_existing_reminder(self.id_request)
         self.is_deleted = True
         self.deleted_at = timezone.now()
         self.canceled_by = canceled_by
