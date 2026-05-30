@@ -501,16 +501,19 @@ def delete_appointment(request, appointment_id):
         return handle_unauthorized_response(request, message, 'html')
 
     appt_session = Session.objects.filter(appointments__in=[appointment]).first()
-    appt_session_id = appt_session.id
-    appt_session_date = appt_session.date
-    appt_session_start_time = appt_session.start_time
-    appt_session_end_time = appt_session.end_time
-    appt_session_staff = appt_session.staff_member
+
+    # Safely extract session attributes before any deletion takes place
+    appt_session_id = appt_session.id if appt_session else None
+    appt_session_date = appt_session.date if appt_session else None
+    appt_session_start_time = appt_session.start_time if appt_session else None
+    appt_session_end_time = appt_session.end_time if appt_session else None
+    appt_session_staff = appt_session.staff_member if appt_session else None
 
     is_client_cancellation = not (request.user.is_staff or request.user.is_superuser)
 
     if is_client_cancellation:
-        if not appt_session.cancellation_threshold_pass():
+        # Refund if cancelling within the free-cancel window (>= 8 h before session)
+        if appt_session and not appt_session.cancellation_threshold_pass():
             refund_credits = "on"
         else:
             refund_credits = "off"
@@ -539,9 +542,11 @@ def delete_appointment(request, appointment_id):
         )
 
     appointment.soft_delete(canceled_by=canceled_by, cancel_reason=cancel_reason)
-    appt_session.appointments.remove(appointment)
-    if appt_session.appointments.count() == 0:
-        appt_session.delete()
+
+    if appt_session:
+        appt_session.appointments.remove(appointment)
+        if appt_session.appointments.count() == 0:
+            appt_session.delete()
 
     if refund_credits == "on":
         appointment.refund_credits()
@@ -565,8 +570,11 @@ def delete_appointment(request, appointment_id):
         except Exception:
             pass
 
+    homepage = getattr(settings, 'HOMEPAGE', '/')
+    next_url = request.GET.get('next', homepage)
+
     # TODO Check if there is anyone waiting to join the session
-    if waitinglists := WaitingList.objects.filter(session_id=appt_session_id).order_by("date_joined").all():
+    if appt_session_id and (waitinglists := WaitingList.objects.filter(session_id=appt_session_id).order_by("date_joined").all()):
         for waitinglist in waitinglists:
             awaiting_user_id = waitinglist.user_id
             awaiting_service_id = waitinglist.service_id
@@ -581,7 +589,7 @@ def delete_appointment(request, appointment_id):
                     continue
             break
         else:
-            return redirect(request.GET.get('next', settings.HOMEPAGE))
+            return redirect(next_url)
 
         ar_data = {
             'date': appt_session_date,
@@ -607,7 +615,7 @@ def delete_appointment(request, appointment_id):
                                 "additional_info": None}
 
             appointment_request = appointment_request_form.save()
-            response = create_appointment(request, appointment_request, client_data, appointment_data)
+            create_appointment(request, appointment_request, client_data, appointment_data)
 
             if requires_membership:
                 membership_used = awaiting_user.client.apply_appointment_request(appointment_request.date,
@@ -615,12 +623,12 @@ def delete_appointment(request, appointment_id):
                 appointment_request.membership_used = membership_used
                 appointment_request.save()
 
-            appointment_obj = appointment_request.appointment
-            appt_session = add_appointment_to_session(appointment_obj, staff_member)
             try:
+                appointment_obj = appointment_request.appointment
+                appt_session = add_appointment_to_session(appointment_obj, staff_member)
                 delete_waiting_list(awaiting_user, appt_session)
                 # TODO Log
-            except Exception as e:
+            except Exception:
                 # TODO Log
                 pass
 
@@ -628,7 +636,7 @@ def delete_appointment(request, appointment_id):
             # TODO Log the issue
             pass
 
-    return redirect(request.GET.get('next', settings.HOMEPAGE))
+    return redirect(next_url)
 
 
 @require_user_authenticated
@@ -639,7 +647,8 @@ def delete_waiting_list_entry(request, waiting_list_id):
         return handle_unauthorized_response(request, message, 'html')
     waiting_list.delete()
     messages.success(request, _("Waiting list entry deleted successfully!"))
-    return redirect(request.GET.get('next', settings.HOMEPAGE))
+    homepage = getattr(settings, 'HOMEPAGE', '/')
+    return redirect(request.GET.get('next', homepage))
 
 
 @require_user_authenticated
@@ -655,7 +664,7 @@ def delete_appointment_ajax(request):
 
     is_client_cancellation = not (request.user.is_staff or request.user.is_superuser)
     if is_client_cancellation:
-        if not appt_session.cancellation_threshold_pass():
+        if appt_session and not appt_session.cancellation_threshold_pass():
             refund_credits = "on"
         else:
             refund_credits = "off"
@@ -675,9 +684,11 @@ def delete_appointment_ajax(request):
         )
 
     appointment.soft_delete(canceled_by=canceled_by, cancel_reason=cancel_reason)
-    appt_session.appointments.remove(appointment)
-    if appt_session.appointments.count() == 0:
-        appt_session.delete()
+
+    if appt_session:
+        appt_session.appointments.remove(appointment)
+        if appt_session.appointments.count() == 0:
+            appt_session.delete()
 
     message = _("Appointment deleted successfully. ")
     if refund_credits == "on":
