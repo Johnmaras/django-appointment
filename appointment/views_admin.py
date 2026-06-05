@@ -14,6 +14,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.http import require_POST
 
@@ -37,6 +38,11 @@ from appointment.utils.json_context import (
 from appointment.utils.permissions import check_extensive_permissions, check_permissions, \
     has_permission_to_delete_appointment
 from appointment.views import create_appointment
+
+
+def _get_cancel_redirect_url(request):
+    """Return the post-cancellation redirect URL without requiring project HOMEPAGE setting."""
+    return request.GET.get('next') or getattr(settings, 'HOMEPAGE', None) or reverse('appointment:get_user_appointments')
 
 
 ###############################################################
@@ -570,8 +576,7 @@ def delete_appointment(request, appointment_id):
         except Exception:
             pass
 
-    homepage = getattr(settings, 'HOMEPAGE', '/')
-    next_url = request.GET.get('next', homepage)
+    next_url = _get_cancel_redirect_url(request)
 
     # TODO Check if there is anyone waiting to join the session
     if appt_session_id and (waitinglists := WaitingList.objects.filter(session_id=appt_session_id).order_by("date_joined").all()):
@@ -647,8 +652,7 @@ def delete_waiting_list_entry(request, waiting_list_id):
         return handle_unauthorized_response(request, message, 'html')
     waiting_list.delete()
     messages.success(request, _("Waiting list entry deleted successfully!"))
-    homepage = getattr(settings, 'HOMEPAGE', '/')
-    return redirect(request.GET.get('next', homepage))
+    return redirect(_get_cancel_redirect_url(request))
 
 
 @require_user_authenticated
@@ -690,12 +694,9 @@ def delete_appointment_ajax(request):
         if appt_session.appointments.count() == 0:
             appt_session.delete()
 
-    message = _("Appointment deleted successfully. ")
+    message = _("Appointment deleted successfully.")
     if refund_credits == "on":
         appointment.refund_credits()
-        message += _("Credits refunded!")
-    else:
-        message += _("No credits refunded.")
 
     return json_response(message)
 
