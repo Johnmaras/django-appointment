@@ -1,5 +1,11 @@
 # Django Appointment 📦
 
+> ⚠️ **MERGED INTO PanagiotisPilates**: The `appointment` app in this repository has been
+> merged into the [PanagiotisPilates](https://github.com/Johnmaras/PanagiotisPilates) project
+> as a first-party app (with permissions ported to django-rules). This repository is kept for
+> history; new development happens in PanagiotisPilates and the
+> `django-appointment-breformed` package is no longer published or consumed.
+
 ![Tests](https://github.com/adamspd/django-appointment/actions/workflows/tests.yml/badge.svg)
 ![Published on PyPi](https://github.com/adamspd/django-appointment/actions/workflows/publish.yml/badge.svg)
 [![Current Release Version](https://img.shields.io/github/release/adamspd/django-appointment.svg?style=flat-square&logo=github)](https://github.com/adamspd/django-appointment/releases)

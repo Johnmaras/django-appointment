@@ -1,5 +1,10 @@
 # Django Appointment Breformed
 
+> ⚠️ **MERGED INTO PanagiotisPilates**: This library has been merged into the
+> PanagiotisPilates project as the first-party `appointment/` app, with permission
+> handling ported to django-rules. This repository is kept for history only — make
+> appointment changes directly in PanagiotisPilates.
+
 A reusable Django library for appointment booking and scheduling. This is a private fork/customization of an appointment system, distributed via Azure DevOps Artifacts.
 
 ## Overview
